@@ -1,8 +1,12 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/construction_object.dart';
 import '../../services/objects_service.dart';
+import 'object_tasks_screen.dart';
+import 'photo_reports_screen.dart';
+import 'object_materials_screen.dart';
+import 'object_history_screen.dart';
 
 class ObjectDetailScreen extends StatefulWidget {
   final ConstructionObject object;
@@ -243,6 +247,50 @@ class _ObjectDetailScreenState extends State<ObjectDetailScreen> {
     }
   }
 
+  void openObjectTasks() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            ObjectTasksScreen(objectId: object.id, objectName: object.name),
+      ),
+    );
+  }
+
+  void openPhotoReports() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            PhotoReportsScreen(objectId: object.id, objectName: object.name),
+      ),
+    );
+  }
+
+  void openObjectMaterials() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ObjectMaterialsScreen(
+          objectId: object.id,
+          objectName: object.name,
+        ),
+      ),
+    );
+  }
+
+  void openObjectHistory() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ObjectHistoryScreen(
+          objectId: object.id,
+          objectName: object.name,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final statusColor = getStatusColor(object.status);
@@ -385,7 +433,7 @@ class _ObjectDetailScreenState extends State<ObjectDetailScreen> {
             icon: Icons.task_alt_outlined,
             title: 'Задачи по объекту',
             subtitle: 'Работы, статусы, исполнители',
-            onTap: () => showPlug(context, 'Задачи по объекту'),
+            onTap: openObjectTasks,
           ),
 
           const SizedBox(height: 14),
@@ -394,7 +442,7 @@ class _ObjectDetailScreenState extends State<ObjectDetailScreen> {
             icon: Icons.photo_camera_outlined,
             title: 'Фотоотчёты',
             subtitle: 'Фото с объекта и история выполнения',
-            onTap: () => showPlug(context, 'Фотоотчёты'),
+            onTap: openPhotoReports,
           ),
 
           const SizedBox(height: 14),
@@ -403,7 +451,7 @@ class _ObjectDetailScreenState extends State<ObjectDetailScreen> {
             icon: Icons.inventory_2_outlined,
             title: 'Материалы',
             subtitle: 'Поставка, остатки, использование',
-            onTap: () => showPlug(context, 'Материалы'),
+            onTap: openObjectMaterials,
           ),
 
           const SizedBox(height: 14),
@@ -412,7 +460,7 @@ class _ObjectDetailScreenState extends State<ObjectDetailScreen> {
             icon: Icons.history_outlined,
             title: 'История объекта',
             subtitle: 'Все действия и изменения по объекту',
-            onTap: () => showPlug(context, 'История объекта'),
+            onTap: openObjectHistory,
           ),
 
           const SizedBox(height: 80),

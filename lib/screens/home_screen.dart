@@ -8,6 +8,8 @@ import 'modules/auth_check_screen.dart';
 import 'modules/objects_screen.dart';
 import 'modules/tasks_screen.dart';
 import 'modules/photo_reports_screen.dart';
+import 'modules/notifications_screen.dart';
+import '../services/notifications_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -23,6 +25,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String userName = '';
   String userEmail = '';
   String userType = '';
+  int unreadNotificationsCount = 0;
 
   @override
   void initState() {
@@ -39,6 +42,38 @@ class _HomeScreenState extends State<HomeScreen> {
       userType = prefs.getString('user_type') ?? '';
       isLoading = false;
     });
+
+    await loadUnreadNotificationsCount();
+  }
+
+
+  Future<void> loadUnreadNotificationsCount() async {
+    try {
+      final count = await NotificationsService.getUnreadCount();
+
+      if (!mounted) return;
+
+      setState(() {
+        unreadNotificationsCount = count;
+      });
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        unreadNotificationsCount = 0;
+      });
+    }
+  }
+
+  Future<void> openNotifications() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+    );
+
+    if (!mounted) return;
+
+    await loadUnreadNotificationsCount();
   }
 
   Future<void> logout() async {
@@ -132,6 +167,40 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: const Color(0xFFF4F6FA),
         elevation: 0,
         actions: [
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              IconButton(
+                onPressed: openNotifications,
+                icon: const Icon(Icons.notifications_none_outlined),
+                tooltip: 'Уведомления',
+              ),
+              if (unreadNotificationsCount > 0)
+                Positioned(
+                  right: 6,
+                  top: 6,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.redAccent,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    constraints: const BoxConstraints(minWidth: 18),
+                    child: Text(
+                      unreadNotificationsCount > 99
+                          ? '99+'
+                          : unreadNotificationsCount.toString(),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
           IconButton(
             onPressed: logout,
             icon: const Icon(Icons.logout),
@@ -202,6 +271,17 @@ class _HomeScreenState extends State<HomeScreen> {
             title: 'Проверить авторизацию',
             subtitle: 'Проверка токена через /api/me',
             onTap: () => openPage(const AuthCheckScreen()),
+          ),
+
+          const SizedBox(height: 16),
+
+          buildCard(
+            icon: Icons.notifications_none_outlined,
+            title: 'Уведомления',
+            subtitle: unreadNotificationsCount > 0
+                ? 'Непрочитанных: $unreadNotificationsCount'
+                : 'Изменения по объектам',
+            onTap: openNotifications,
           ),
 
           const SizedBox(height: 16),
