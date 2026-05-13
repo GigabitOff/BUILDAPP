@@ -1,59 +1,38 @@
-# BUILD_TRACKER — карта проекта (для GPT / ИИ)
+# BUILD_TRACKER — PROJECT MAP FOR GPT
 
-Актуальная схема репозитория и контрактов. Использовать вместе с `PROJECT_CONTEXT.md`.
+Актуальная карта проекта для ИИ-ассистента: структура, модули, методы, API-контракты.
 
-**Дата актуализации карты:** 2026-05-12 (по состоянию кода в репозитории).
-
----
-
-## 1. Идентификация
-
-| Поле | Значение |
-|------|----------|
-| Пакет (pubspec) | `build_tracker` |
-| Название в UI | **BUILDAPP** (`MaterialApp.title` в `lib/main.dart`) |
-| Тип | Flutter-приложение (Android / iOS; в репозитории есть заготовки web / desktop) |
-| Предметная область | Контроль строительства: объекты, задачи, материалы, история объекта, фотоотчёты, уведомления |
-| Backend | Node.js REST API |
-| Авторизация | JWT в `SharedPreferences` после успешного входа; основной сценарий — **телефон + SMS-код** (`PhoneLoginScreen` → `PinCodeScreen`). Запасной экран `login_screen.dart` (email/пароль) в дереве навигации **не подключён**. |
+**Дата актуализации:** 2026-05-13
+**Источник:** текущее состояние репозитория (`lib/**/*.dart`, `pubspec.yaml`)
 
 ---
 
-## 2. Обязательные правила при правках
+## 1) Что это за проект
 
-- Не ломать существующую бизнес-логику и форматы ответов API.
-- Не менять пути эндпоинтов и семантику тел без явного согласия пользователя проекта.
-- Осторожно с токеном, `logout`, ролью `user_type` (`admin` влияет на список объектов).
-- UI — в духе текущего Material 3 (см. `ThemeData` в `main.dart`).
-- Перед крупным рефакторингом — краткий план и список файлов.
-
----
-
-## 3. Стек (`pubspec.yaml`)
-
-- **SDK:** Dart `^3.11.0`
-- **Зависимости:** `flutter`, `cupertino_icons`, `http`, `shared_preferences`, `image_picker`
-- **Dev:** `flutter_test`, `flutter_lints`, `flutter_launcher_icons`, `flutter_native_splash`
-- **Assets:** `assets/icons/app_icon.png` (иконка и splash по конфигу в `pubspec.yaml`)
+- Пакет: `build_tracker`
+- UI-имя приложения: `BUILDAPP` (в `lib/main.dart`)
+- Тип: Flutter app (mobile-first; платформенные папки также присутствуют)
+- Домен: строительные объекты, задачи, материалы, история, фотоотчёты, уведомления
+- Backend: REST API с JWT
 
 ---
 
-## 4. Архитектура
+## 2) Технологический стек
 
-Слоёвый монолит без отдельного state-management фреймворка (без BLoC / Provider / Riverpod):
-
-| Слой | Путь | Назначение |
-|------|------|------------|
-| Точка входа | `lib/main.dart` | `MaterialApp`, тема, `AppStartScreen` — проверка токена |
-| UI | `lib/screens/**` | Экраны и сценарии |
-| API / локаль | `lib/services/**` | HTTP, заголовки `Authorization`, разбор JSON |
-| Модели | `lib/models/**` | Сущности и `fromJson` / `toJson` где есть |
-
-Состояние: в основном `StatefulWidget` + `async` + `setState`.
+- Dart SDK: `^3.11.0`
+- Основные зависимости:
+  - `http`
+  - `shared_preferences`
+  - `image_picker`
+  - `share_plus`
+- Dev/tools:
+  - `flutter_lints`
+  - `flutter_launcher_icons`
+  - `flutter_native_splash`
 
 ---
 
-## 5. Дерево `lib/` (все Dart-файлы)
+## 3) Дерево `lib/` (актуальное)
 
 ```text
 lib/
@@ -67,15 +46,16 @@ lib/
     api_config.dart
     auth_service.dart
     dashboard_service.dart
+    invites_service.dart
     materials_service.dart
     notifications_service.dart
     object_history_service.dart
     objects_service.dart
   screens/
-    login_screen.dart          ← email/пароль; не используется в стартовом потоке
+    home_screen.dart
+    login_screen.dart
     phone_login_screen.dart
     pin_code_screen.dart
-    home_screen.dart
     modules/
       auth_check_screen.dart
       notifications_screen.dart
@@ -91,155 +71,326 @@ lib/
 
 ---
 
-## 6. Поток приложения
+## 4) Точка входа и навигационный поток
 
-1. `main()` → `BuildApp` → `home: AppStartScreen`.
-2. `AppStartScreen`: читает `auth_token` из `SharedPreferences`.
-3. Токен непустой → `HomeScreen`, иначе → **`PhoneLoginScreen`** (не `LoginScreen`).
-4. **Телефон:** `PhoneLoginScreen` → `AuthService.startPhoneLogin` → `PinCodeScreen` → `AuthService.verifyPhoneCode` → сохранение через `_saveAuthData` → `HomeScreen`.
-5. **Email/пароль:** реализовано в `LoginScreen` + `AuthService.login`, но из `main` / логаута на этот экран перехода нет — файл остаётся для ручного подключения или отладки.
-6. `HomeScreen`: после локальных полей пользователя вызывает **`DashboardService.getCounts()`** для бейджей/цифр на карточках; разделы — уведомления, объекты, задачи, фотоотчёты, проверки (`AuthCheckScreen`).
-
----
-
-## 7. Сервисы и зона ответственности
-
-| Файл | Роль |
-|------|------|
-| `api_config.dart` | `ApiConfig.baseUrl` — основной хост API |
-| `auth_service.dart` | Логин по паролю, старт/проверка телефона, `me()`, `logout`, сохранение данных в `SharedPreferences` |
-| `dashboard_service.dart` | **`GET /api/dashboard/counts`** — агрегированные счётчики для главного экрана (`notifications.new`, `objects.total`, `tasks.total`, `photoReports.total`) |
-| `objects_service.dart` | Список объектов (роль admin / не admin), создание объекта, исполнители, привязка пользователя к объекту |
-| `materials_service.dart` | CRUD материалов по `objectId` |
-| `object_history_service.dart` | Чтение и добавление записей истории объекта |
-| `notifications_service.dart` | Список, непрочитанные, отметка прочитанным |
+1. `main()` -> `BuildApp` -> `AppStartScreen`
+2. `AppStartScreen.checkToken()`:
+   - есть `auth_token` -> `HomeScreen`
+   - нет токена -> `PhoneLoginScreen`
+3. Phone login:
+   - `PhoneLoginScreen._sendCode()` -> `AuthService.startPhoneLogin()`
+   - `PinCodeScreen._verifyCode()` -> `AuthService.verifyPhoneCode()`
+   - после успеха -> `HomeScreen`
+4. `LoginScreen` (email/password) реализован, но не является стандартным стартовым маршрутом
+5. `HomeScreen` грузит пользователя из `SharedPreferences` и вызывает `DashboardService.getCounts()`
 
 ---
 
-## 8. Базовый URL и дублирование
+## 5) Конфиг и auth state
 
-- **Канон:** `lib/services/api_config.dart` → `http://185.112.41.227:3036`
-- **Дубли хоста (риск расхождения при смене сервера):**
-  - `lib/services/objects_service.dart` — локальная константа `baseUrl` (дублирует хост, не через `ApiConfig`)
-  - `lib/screens/modules/object_tasks_screen.dart` — свой `baseUrl`
-  - `lib/screens/modules/photo_reports_screen.dart` — свой `baseUrl` (в комментарии — старый IP; фактически совпадает с текущим)
-
-Остальные сервисы и `tasks_screen.dart` используют `ApiConfig.baseUrl`.
-
----
-
-## 9. Карта API (как в коде)
-
-Префикс: `{ApiConfig.baseUrl}` или эквивалентный дублированный `baseUrl`.
-
-**Дашборд**
-
-- `GET /api/dashboard/counts` — счётчики для `HomeScreen` (`DashboardService`)
-
-**Авторизация и профиль**
-
-- `POST /api/auth/login`
-- `POST /api/auth/phone/start`
-- `POST /api/auth/phone/verify`
-- `GET /api/me`
-
-**Уведомления**
-
-- `GET /api/notifications` (опционально `?unread=1`)
-- `GET /api/notifications/unread-count`
-- `POST /api/notifications/{notificationId}/read`
-- `POST /api/notifications/read-all`
-
-**Объекты и пользователи**
-
-- `GET /api/objects` — если `user_type == 'admin'`
-- `GET /api/my-objects` — иначе
-- `POST /api/objects` — создание
-- `GET /api/users/executors`
-- `POST /api/construction-objects/{objectId}/users` — тело: `user_id`, `role_on_object`
-
-**Материалы**
-
-- `GET/POST /api/construction-objects/{objectId}/materials`
-- `PUT/DELETE /api/construction-objects/{objectId}/materials/{materialId}`
-
-**История объекта**
-
-- `GET/POST /api/construction-objects/{objectId}/history`
-
-**Задачи**
-
-- `GET /api/tasks`
-- `GET/POST /api/construction-objects/{objectId}/tasks`
-- запрос к `/api/object-tasks/{taskId}/status` (смена статуса)
-- `DELETE /api/object-tasks/{taskId}`
-
-**Фотоотчёты**
-
-- `GET/POST` (multipart) `/api/construction-objects/{objectId}/photo-reports`
-- `DELETE /api/photo-reports/{reportId}`
+- Базовый URL (канон): `ApiConfig.baseUrl = http://185.112.41.227:3036`
+- Ключи `SharedPreferences`:
+  - `auth_token`
+  - `user_name`
+  - `user_email`
+  - `user_type`
+- `AuthService.logout()` очищает все 4 ключа
 
 ---
 
-## 10. `SharedPreferences`
+## 6) Полная карта сервисов и методов
 
-| Ключ | Назначение |
-|------|------------|
-| `auth_token` | JWT |
-| `user_name` | Имя из `data['user']['name']` |
-| `user_email` | Email из `data['user']['email']` (при телефонном входе может быть пустым) |
-| `user_type` | Роль из `data['user']['usertype']` (важно для списка объектов) |
+### `lib/services/api_config.dart`
 
-`AuthService.logout` удаляет все четыре ключа.
+- `ApiConfig.baseUrl`
+
+### `lib/services/auth_service.dart` — авторизация и профиль
+
+- `login({email, password})`
+- `startPhoneLogin({phone})`
+- `verifyPhoneCode({phone, code})`
+- `me()`
+- `logout()`
+- `_saveAuthData(data)` (private)
+
+### `lib/services/dashboard_service.dart` — счётчики главной
+
+- `getCounts()`
+
+### `lib/services/objects_service.dart` — объекты и исполнители
+
+- `_getPrefs()` (private)
+- `_getToken()` (private)
+- `_getUserType()` (private)
+- `getObjects()`
+- `createObject(object)`
+- `getExecutors()`
+- `assignExecutorToObject({objectId, userId, roleOnObject})`
+
+### `lib/services/materials_service.dart` — материалы объекта
+
+- `_getToken()` (private, static)
+- `getMaterials(objectId)`
+- `createMaterial({objectId, name, unit, quantity, price, comment})`
+- `updateMaterial({objectId, materialId, name, unit, quantity, price, comment})`
+- `deleteMaterial({objectId, materialId})`
+
+### `lib/services/object_history_service.dart` — история объекта
+
+- `_getToken()` (private, static)
+- `getHistory(objectId)`
+- `createHistoryItem({objectId, title, description, actionType})`
+
+### `lib/services/notifications_service.dart` — уведомления
+
+- `_getToken()` (private, static)
+- `getNotifications({onlyUnread})`
+- `getUnreadCount()`
+- `markAsRead(notificationId)`
+- `markAllAsRead()`
+
+### `lib/services/invites_service.dart` — инвайты в проект
+
+- `createProjectInvite({objectId, roleOnObject})`
+- `getInviteInfo(inviteToken)`
+- `acceptInvite(inviteToken)`
 
 ---
 
-## 11. Модели (`lib/models`)
+## 7) Карта моделей и фабрик
 
-- `ConstructionObject` — объект строительства
-- `ObjectMaterial` — материал на объекте
-- `ObjectHistoryItem` — запись истории
-- `ObjectNotification` — уведомление
+### `ConstructionObject` (`lib/models/construction_object.dart`)
 
----
+- Поля: id, name, address, status, customer, responsible, executorName, startDate, endDate, description, tasksCount, photosCount
+- Методы:
+  - `toJson()`
+  - `fromJson(json)` (factory)
 
-## 12. Остальной репозиторий (кратко)
+### `ObjectMaterial` (`lib/models/object_material.dart`)
 
-- `android/`, `ios/`, `web/`, `windows/`, `linux/`, `macos/` — платформенные проекты Flutter
-- `assets/icons/` — иконка приложения
-- `analysis_options.yaml` — анализатор / линты
-- `pubspec.lock` — зафиксированные версии пакетов
+- Поля: id, constructionObjectId, name, unit, quantity, price, comment, createdBy, createdAt, updatedAt
+- Методы:
+  - `fromJson(json)` (factory)
 
-В каталоге `test/` нет пользовательских Dart-тестов (или он пуст относительно сценариев приложения).
+### `ObjectHistoryItem` (`lib/models/object_history_item.dart`)
 
----
+- Поля: id, constructionObjectId, userId, userName, actionType, title, description, createdAt
+- Методы:
+  - `fromJson(json)` (factory)
 
-## 13. Рискованные зоны
+### `ObjectNotification` (`lib/models/object_notification.dart`)
 
-- Авторизация, сохранение и очистка токена
-- Разделение admin / не admin для `GET` объектов
-- `HomeScreen` + `DashboardService` — при ошибке счётчики обнуляются молча (`catch` без сообщения пользователю)
-- `object_tasks_screen.dart`, `tasks_screen.dart`, `photo_reports_screen.dart`, `objects_screen.dart` — много UI и запросов
-- Согласованность `baseUrl` между файлами
-
----
-
-## 14. Порядок работы для ИИ
-
-1. Прочитать `PROJECT_CONTEXT.md` и этот файл.
-2. Найти экран в `lib/screens/...` и связанный `service` / `model`.
-3. Сохранить контракт API и ключи `SharedPreferences`.
-4. Сохранить стиль UI.
-5. По возможности прогнать `flutter analyze`.
+- Поля: id, constructionObjectId, objectName, userId, actorUserId, actorName, title, message, notificationType, isRead, createdAt, readAt
+- Методы:
+  - `fromJson(json)` (factory)
 
 ---
 
-## 15. Стартовый промпт для другой сессии
+## 8) Карта экранов и ключевых методов
 
-```text
-Ты работаешь с репозиторием BUILD_TRACKER (Flutter, бренд BUILDAPP).
-Правила: не ломай бизнес-логику; не меняй API без подтверждения; осторожно с JWT и user_type (admin).
-Контекст: PROJECT_CONTEXT.md и PROJECT_MAP_FOR_CHATGPT.md в корне проекта.
-Старт без токена: PhoneLoginScreen → PinCodeScreen; LoginScreen (email) в навигации не задействован.
-Перед изменениями кратко опиши план и список файлов.
-```
+Ниже перечислены основные state-методы и сценарии; UI-вспомогательные `build*` виджеты не расписываются подробно.
+
+### Core screens
+
+- `lib/main.dart`
+  - `main()`
+  - `BuildApp.build()`
+  - `AppStartScreen.initState()`
+  - `AppStartScreen.checkToken()`
+  - `AppStartScreen.build()`
+
+- `lib/screens/home_screen.dart`
+  - `initState()`
+  - `loadUser()`
+  - `loadDashboardCounts()`
+  - `openNotifications()`
+  - `logout()`
+  - `openPage(page)`
+  - `buildCard(...)`
+
+- `lib/screens/phone_login_screen.dart`
+  - `_sendCode()`
+  - `_showMessage(text)`
+  - `dispose()`
+  - `build()`
+  - `UkrainianPhoneFormatter.formatEditUpdate(...)`
+
+- `lib/screens/pin_code_screen.dart`
+  - `_verifyCode()`
+  - `_showMessage(text)`
+  - `dispose()`
+  - `build()`
+
+- `lib/screens/login_screen.dart`
+  - `login()`
+  - `dispose()`
+  - `build()`
+
+### Module screens
+
+- `lib/screens/modules/auth_check_screen.dart`
+  - `checkToken()`
+  - `build()`
+
+- `lib/screens/modules/notifications_screen.dart`
+  - `initState()`
+  - `loadNotifications()`
+  - `markAsRead(notification)`
+  - `markAllAsRead()`
+  - `formatDate(raw)`
+  - `buildNotificationCard(item)`
+  - `buildBody()`
+  - `build()`
+
+- `lib/screens/modules/objects_screen.dart`
+  - `initScreen()`
+  - `loadUserType()`
+  - `loadObjects()`
+  - `openObject(object)`
+  - `addObject()`
+  - `dispose()`
+  - `build()`
+
+- `lib/screens/modules/object_form_screen.dart`
+  - `dispose()`
+  - `saveObject()`
+  - `field(...)`
+  - `build()`
+
+- `lib/screens/modules/object_detail_screen.dart`
+  - `loadUserType()`
+  - `showAssignExecutorDialog()`
+  - `assignExecutor(userId, name)`
+  - `shareProjectInvite()`
+  - `openObjectTasks()`
+  - `openPhotoReports()`
+  - `openObjectMaterials()`
+  - `openObjectHistory()`
+  - `build()`
+
+- `lib/screens/modules/object_tasks_screen.dart`
+  - `getToken()`
+  - `loadUserType()`
+  - `loadTasks()`
+  - `createTask(status)`
+  - `updateTaskStatus(...)`
+  - `deleteTask(taskId)`
+  - `formatDate(rawDate)`
+  - `showAddTaskSheet()`
+  - `showChangeStatusSheet(task)`
+  - `openTaskDetails(task)`
+  - `buildEmptyState()`
+  - `build()`
+
+- `lib/screens/modules/tasks_screen.dart`
+  - `getToken()`
+  - `loadTasks()`
+  - `updateTaskStatus(...)`
+  - `formatDate(rawDate)`
+  - `safeText(value, fallback)`
+  - `resetFilters()`
+  - `openFilterSheet()`
+  - `showTaskDetails(task)`
+  - `buildFilterInfo()`
+  - `buildEmptyState()`
+  - `buildFilteredEmptyState()`
+  - `buildErrorState()`
+  - `buildTaskList()`
+  - `build()`
+
+- `lib/screens/modules/object_materials_screen.dart`
+  - `loadMaterials()`
+  - `money(value)`
+  - `deleteMaterial(material)`
+  - `showMaterialDialog({material})`
+  - `buildMaterialCard(material)`
+  - `buildBody()`
+  - `build()`
+
+- `lib/screens/modules/object_history_screen.dart`
+  - `loadHistory()`
+  - `actionTitle(type)`
+  - `formatDate(value)`
+  - `showAddHistoryDialog()`
+  - `buildHistoryCard(item)`
+  - `buildBody()`
+  - `build()`
+
+- `lib/screens/modules/photo_reports_screen.dart`
+  - `getToken()`
+  - `loadPhotoReports()`
+  - `pickImage(source)`
+  - `showPhotoSourceSheet()`
+  - `showAddPhotoDialog()`
+  - `uploadPhotoReport()`
+  - `deletePhotoReport(reportId)`
+  - `formatDate(rawDate)`
+  - `buildEmptyState()`
+  - `build()`
+
+---
+
+## 9) API endpoints (как используются в коде)
+
+Префикс: `ApiConfig.baseUrl` (в части файлов есть локальный `baseUrl` с тем же доменом).
+
+- Dashboard:
+  - `GET /api/dashboard/counts`
+- Auth:
+  - `POST /api/auth/login`
+  - `POST /api/auth/phone/start`
+  - `POST /api/auth/phone/verify`
+  - `GET /api/me`
+- Notifications:
+  - `GET /api/notifications`
+  - `GET /api/notifications?unread=1`
+  - `GET /api/notifications/unread-count`
+  - `POST /api/notifications/{id}/read`
+  - `POST /api/notifications/read-all`
+- Objects/users:
+  - `GET /api/objects` (admin)
+  - `GET /api/my-objects` (non-admin)
+  - `POST /api/objects`
+  - `GET /api/users/executors`
+  - `POST /api/construction-objects/{objectId}/users`
+- Materials:
+  - `GET /api/construction-objects/{objectId}/materials`
+  - `POST /api/construction-objects/{objectId}/materials`
+  - `PUT /api/construction-objects/{objectId}/materials/{materialId}`
+  - `DELETE /api/construction-objects/{objectId}/materials/{materialId}`
+- Object history:
+  - `GET /api/construction-objects/{objectId}/history`
+  - `POST /api/construction-objects/{objectId}/history`
+- Tasks:
+  - `GET /api/tasks`
+  - `GET /api/construction-objects/{objectId}/tasks`
+  - `POST /api/construction-objects/{objectId}/tasks`
+  - `POST /api/object-tasks/{taskId}/status`
+  - `DELETE /api/object-tasks/{taskId}`
+- Photo reports:
+  - `GET /api/construction-objects/{objectId}/photo-reports`
+  - `POST /api/construction-objects/{objectId}/photo-reports` (multipart)
+  - `DELETE /api/photo-reports/{reportId}`
+- Invites:
+  - `POST /api/construction-objects/{objectId}/invite`
+  - `GET /api/invites/{inviteToken}`
+  - `POST /api/invites/{inviteToken}/accept`
+
+---
+
+## 10) Риски и узкие места
+
+- Дублирование `baseUrl` в отдельных файлах (`objects_service`, `object_tasks_screen`, `photo_reports_screen`)
+- Критичность ключа `user_type` для ветки `/api/objects` vs `/api/my-objects`
+- Логика auth-ключей в `SharedPreferences` влияет на старт приложения и logout
+- Большие “толстые” экраны с HTTP + UI одновременно: `tasks_screen`, `object_tasks_screen`, `photo_reports_screen`, `objects_screen`
+
+---
+
+## 11) Инструкция для GPT при работе с репозиторием
+
+1. Сначала прочитать `PROJECT_CONTEXT.md` и этот файл.
+2. Определить экран (`lib/screens/**`) и связанный сервис (`lib/services/**`).
+3. Проверить API-контракт в разделе endpoints выше перед изменениями.
+4. Не менять ключи `SharedPreferences` и не ломать auth-flow без явного запроса.
+5. При изменениях в одном модуле сверять модель (`lib/models/**`) и JSON-поля.

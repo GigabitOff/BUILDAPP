@@ -80,6 +80,25 @@ class ObjectsService {
     return ConstructionObject.fromJson(data['object']);
   }
 
+  Future<void> deleteObject(int objectId) async {
+    final token = await _getToken();
+
+    final response = await http.delete(
+      Uri.parse('$baseUrl/api/objects/$objectId'),
+      headers: {'Accept': 'application/json', 'Authorization': 'Bearer $token'},
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode != 200) {
+      throw Exception(data['message'] ?? 'Ошибка удаления объекта');
+    }
+
+    if (data['success'] != true) {
+      throw Exception(data['message'] ?? 'Сервер вернул ошибку');
+    }
+  }
+
   Future<List<Map<String, dynamic>>> getExecutors() async {
     final token = await _getToken();
 

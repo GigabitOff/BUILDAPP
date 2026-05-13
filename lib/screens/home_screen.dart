@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/auth_service.dart';
 import '../services/dashboard_service.dart';
+import '../services/users_service.dart';
 
 import 'phone_login_screen.dart';
 
@@ -11,6 +12,7 @@ import 'modules/notifications_screen.dart';
 import 'modules/objects_screen.dart';
 import 'modules/photo_reports_screen.dart';
 import 'modules/tasks_screen.dart';
+import 'modules/users_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -29,9 +31,14 @@ class _HomeScreenState extends State<HomeScreen> {
   String userType = '';
 
   int unreadNotificationsCount = 0;
+  int usersCount = 0;
   int objectsCount = 0;
   int tasksCount = 0;
   int photoReportsCount = 0;
+
+  bool get isAdmin {
+    return userType == 'admin' || userType == '1';
+  }
 
   @override
   void initState() {
@@ -56,10 +63,22 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final counts = await DashboardService.getCounts();
 
+      int loadedUsersCount = 0;
+
+      if (isAdmin) {
+        try {
+          final users = await UsersService.getUsers();
+          loadedUsersCount = users.length;
+        } catch (_) {
+          loadedUsersCount = 0;
+        }
+      }
+
       if (!mounted) return;
 
       setState(() {
         unreadNotificationsCount = counts['notifications']['new'] ?? 0;
+        usersCount = loadedUsersCount;
         objectsCount = counts['objects']['total'] ?? 0;
         tasksCount = counts['tasks']['total'] ?? 0;
         photoReportsCount = counts['photoReports']['total'] ?? 0;
@@ -69,6 +88,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       setState(() {
         unreadNotificationsCount = 0;
+        usersCount = 0;
         objectsCount = 0;
         tasksCount = 0;
         photoReportsCount = 0;
@@ -80,6 +100,17 @@ class _HomeScreenState extends State<HomeScreen> {
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+    );
+
+    if (!mounted) return;
+
+    await loadDashboardCounts();
+  }
+
+  Future<void> openUsers() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const UsersScreen()),
     );
 
     if (!mounted) return;
@@ -133,7 +164,9 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               child: Icon(icon, color: const Color(0xFF1F6FEB), size: 28),
             ),
+
             const SizedBox(width: 16),
+
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -153,6 +186,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ),
+
             if (badgeCount != null)
               Container(
                 margin: const EdgeInsets.only(right: 10),
@@ -173,6 +207,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
+
             const Icon(Icons.chevron_right, color: Colors.black38),
           ],
         ),
@@ -323,6 +358,18 @@ class _HomeScreenState extends State<HomeScreen> {
               isNew: unreadNotificationsCount > 0,
               onTap: openNotifications,
             ),
+
+            if (isAdmin) ...[
+              const SizedBox(height: 16),
+
+              buildCard(
+                icon: Icons.people_alt_outlined,
+                title: 'Пользователи',
+                subtitle: 'Всего пользователей: $usersCount',
+                badgeCount: usersCount,
+                onTap: openUsers,
+              ),
+            ],
 
             const SizedBox(height: 16),
 

@@ -28,6 +28,38 @@ class AuthService {
     throw Exception(data['message'] ?? 'Ошибка авторизации');
   }
 
+  Future<Map<String, dynamic>> register({
+    required String organization,
+    required String name,
+    required String email,
+    required String phone,
+    required String password,
+  }) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/auth/register');
+
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'organization': organization,
+        'name': name,
+        'email': email,
+        'phone': phone,
+        'password': password,
+      }),
+    );
+
+    final Map<String, dynamic> data = jsonDecode(response.body);
+
+    if ((response.statusCode == 200 || response.statusCode == 201) &&
+        data['success'] == true) {
+      await _saveAuthData(data);
+      return data;
+    }
+
+    throw Exception(data['message'] ?? 'Ошибка регистрации');
+  }
+
   Future<Map<String, dynamic>> startPhoneLogin({required String phone}) async {
     final url = Uri.parse('${ApiConfig.baseUrl}/api/auth/phone/start');
 
@@ -96,6 +128,7 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
 
     await prefs.remove('auth_token');
+    await prefs.remove('user_id');
     await prefs.remove('user_name');
     await prefs.remove('user_email');
     await prefs.remove('user_type');
@@ -104,9 +137,17 @@ class AuthService {
   Future<void> _saveAuthData(Map<String, dynamic> data) async {
     final prefs = await SharedPreferences.getInstance();
 
-    await prefs.setString('auth_token', data['token']);
-    await prefs.setString('user_name', data['user']['name'] ?? '');
-    await prefs.setString('user_email', data['user']['email'] ?? '');
-    await prefs.setString('user_type', data['user']['usertype'] ?? '');
+    final user = data['user'] ?? {};
+
+    await prefs.setString('auth_token', data['token']?.toString() ?? '');
+
+    await prefs.setInt(
+      'user_id',
+      int.tryParse(user['id']?.toString() ?? '0') ?? 0,
+    );
+
+    await prefs.setString('user_name', user['name']?.toString() ?? '');
+    await prefs.setString('user_email', user['email']?.toString() ?? '');
+    await prefs.setString('user_type', user['usertype']?.toString() ?? '');
   }
 }

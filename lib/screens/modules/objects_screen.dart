@@ -20,6 +20,7 @@ class _ObjectsScreenState extends State<ObjectsScreen> {
   final List<ConstructionObject> objects = [];
 
   bool isLoading = true;
+  bool isDeleting = false;
   String errorText = '';
   String searchText = '';
   String userType = '';
@@ -139,6 +140,93 @@ class _ObjectsScreenState extends State<ObjectsScreen> {
     ).showSnackBar(const SnackBar(content: Text('Объект добавлен')));
   }
 
+  Future<void> deleteObject(ConstructionObject object) async {
+    if (!isAdmin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Удалять объекты может только администратор'),
+        ),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: !isDeleting,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Удалить объект?',
+                  style: TextStyle(fontWeight: FontWeight.w900),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            'Объект "${object.name}" будет скрыт из приложения.\n\n'
+            'Задачи, материалы, фотоотчёты, история и уведомления по объекту останутся в базе для контроля и возможного восстановления.\n\n'
+            'Полное удаление связанных данных не выполняется.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Отмена'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              icon: const Icon(Icons.delete_outline),
+              label: const Text('Удалить объект'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
+    setState(() {
+      isDeleting = true;
+    });
+
+    try {
+      await objectsService.deleteObject(object.id);
+
+      if (!mounted) return;
+
+      setState(() {
+        objects.removeWhere((item) => item.id == object.id);
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Объект удалён')));
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    } finally {
+      if (!mounted) return;
+
+      setState(() {
+        isDeleting = false;
+      });
+    }
+  }
+
   @override
   void dispose() {
     searchController.dispose();
@@ -160,17 +248,16 @@ class _ObjectsScreenState extends State<ObjectsScreen> {
         elevation: 0,
         actions: [
           IconButton(
-            onPressed: isLoading ? null : loadObjects,
+            onPressed: isLoading || isDeleting ? null : loadObjects,
             icon: const Icon(Icons.refresh),
             tooltip: 'Обновить',
           ),
         ],
       ),
 
-      // Кнопка "Добавить" только для админа
       floatingActionButton: isAdmin
           ? FloatingActionButton.extended(
-              onPressed: addObject,
+              onPressed: isDeleting ? null : addObject,
               backgroundColor: const Color(0xFF1F6FEB),
               foregroundColor: Colors.white,
               icon: const Icon(Icons.add),
@@ -210,7 +297,7 @@ class _ObjectsScreenState extends State<ObjectsScreen> {
                   const SizedBox(height: 6),
                   Text(
                     isAdmin
-                        ? 'Админ видит все объекты и может создавать новые'
+                        ? 'Админ видит объекты своей компании и может создавать новые'
                         : 'Здесь только объекты, назначенные тебе',
                     style: const TextStyle(color: Colors.white70, fontSize: 15),
                   ),
@@ -266,6 +353,32 @@ class _ObjectsScreenState extends State<ObjectsScreen> {
 
             const SizedBox(height: 18),
 
+            if (isDeleting)
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.redAccent.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: const Row(
+                  children: [
+                    SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Удаляем объект...',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
             if (isLoading)
               const _LoadingState()
             else if (errorText.isNotEmpty)
@@ -279,7 +392,9 @@ class _ObjectsScreenState extends State<ObjectsScreen> {
                   child: _ObjectCard(
                     object: item,
                     statusColor: getStatusColor(item.status),
+                    isAdmin: isAdmin,
                     onTap: () => openObject(item),
+                    onDelete: () => deleteObject(item),
                   ),
                 ),
               ),
@@ -351,12 +466,16 @@ class _SmallStatCard extends StatelessWidget {
 class _ObjectCard extends StatelessWidget {
   final ConstructionObject object;
   final Color statusColor;
+  final bool isAdmin;
   final VoidCallback onTap;
+  final VoidCallback onDelete;
 
   const _ObjectCard({
     required this.object,
     required this.statusColor,
+    required this.isAdmin,
     required this.onTap,
+    required this.onDelete,
   });
 
   @override
@@ -426,6 +545,15 @@ class _ObjectCard extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (isAdmin)
+                  IconButton(
+                    onPressed: onDelete,
+                    icon: const Icon(
+                      Icons.delete_outline,
+                      color: Colors.redAccent,
+                    ),
+                    tooltip: 'Удалить объект',
+                  ),
                 const Icon(Icons.chevron_right, color: Colors.black38),
               ],
             ),
