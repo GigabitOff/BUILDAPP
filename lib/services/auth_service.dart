@@ -21,17 +21,51 @@ class AuthService {
     final Map<String, dynamic> data = jsonDecode(response.body);
 
     if (response.statusCode == 200 && data['success'] == true) {
-      final prefs = await SharedPreferences.getInstance();
-
-      await prefs.setString('auth_token', data['token']);
-      await prefs.setString('user_name', data['user']['name'] ?? '');
-      await prefs.setString('user_email', data['user']['email'] ?? '');
-      await prefs.setString('user_type', data['user']['usertype'] ?? '');
-
+      await _saveAuthData(data);
       return data;
     }
 
     throw Exception(data['message'] ?? 'Ошибка авторизации');
+  }
+
+  Future<Map<String, dynamic>> startPhoneLogin({required String phone}) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/auth/phone/start');
+
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'phone': phone}),
+    );
+
+    final Map<String, dynamic> data = jsonDecode(response.body);
+
+    if (response.statusCode == 200 && data['success'] == true) {
+      return data;
+    }
+
+    throw Exception(data['message'] ?? 'Ошибка отправки PIN-кода');
+  }
+
+  Future<Map<String, dynamic>> verifyPhoneCode({
+    required String phone,
+    required String code,
+  }) async {
+    final url = Uri.parse('${ApiConfig.baseUrl}/api/auth/phone/verify');
+
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'phone': phone, 'code': code}),
+    );
+
+    final Map<String, dynamic> data = jsonDecode(response.body);
+
+    if (response.statusCode == 200 && data['success'] == true) {
+      await _saveAuthData(data);
+      return data;
+    }
+
+    throw Exception(data['message'] ?? 'Ошибка проверки PIN-кода');
   }
 
   Future<Map<String, dynamic>> me() async {
@@ -65,5 +99,14 @@ class AuthService {
     await prefs.remove('user_name');
     await prefs.remove('user_email');
     await prefs.remove('user_type');
+  }
+
+  Future<void> _saveAuthData(Map<String, dynamic> data) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    await prefs.setString('auth_token', data['token']);
+    await prefs.setString('user_name', data['user']['name'] ?? '');
+    await prefs.setString('user_email', data['user']['email'] ?? '');
+    await prefs.setString('user_type', data['user']['usertype'] ?? '');
   }
 }

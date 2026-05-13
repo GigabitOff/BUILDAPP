@@ -62,6 +62,7 @@ class _ObjectFormScreenState extends State<ObjectFormScreen> {
       status: status,
       customer: customerController.text.trim(),
       responsible: responsibleController.text.trim(),
+      executorName: '',
       startDate: startDateController.text.trim(),
       endDate: endDateController.text.trim(),
       description: descriptionController.text.trim(),
@@ -79,9 +80,7 @@ class _ObjectFormScreenState extends State<ObjectFormScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString().replaceFirst('Exception: ', '')),
-        ),
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
       );
     } finally {
       if (mounted) {
@@ -202,10 +201,7 @@ class _ObjectFormScreenState extends State<ObjectFormScreen> {
             DropdownButtonFormField<String>(
               value: status,
               items: statuses.map((item) {
-                return DropdownMenuItem(
-                  value: item,
-                  child: Text(item),
-                );
+                return DropdownMenuItem(value: item, child: Text(item));
               }).toList(),
               onChanged: isSaving
                   ? null

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'screens/home_screen.dart';
-import 'screens/login_screen.dart';
+import 'screens/phone_login_screen.dart';
 
 void main() {
   runApp(const BuildApp());
@@ -63,6 +63,6 @@ class _AppStartScreenState extends State<AppStartScreen> {
       return const HomeScreen();
     }
 
-    return const LoginScreen();
+    return const PhoneLoginScreen();
   }
 }

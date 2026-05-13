@@ -19,6 +19,10 @@ class _TasksScreenState extends State<TasksScreen> {
 
   final List<Map<String, dynamic>> tasks = [];
 
+  String selectedObject = 'Все объекты';
+  String selectedStatus = 'Все статусы';
+  String selectedSort = 'Новые сверху';
+
   @override
   void initState() {
     super.initState();
@@ -167,6 +171,16 @@ class _TasksScreenState extends State<TasksScreen> {
     }
   }
 
+  DateTime? parseTaskDate(dynamic rawDate) {
+    final value = '${rawDate ?? ''}'.trim();
+
+    if (value.isEmpty || value == 'null') {
+      return null;
+    }
+
+    return DateTime.tryParse(value);
+  }
+
   String safeText(dynamic value, {String fallback = 'Не указано'}) {
     final text = '${value ?? ''}'.trim();
 
@@ -175,6 +189,289 @@ class _TasksScreenState extends State<TasksScreen> {
     }
 
     return text;
+  }
+
+  List<String> get objectFilterItems {
+    final values = <String>{'Все объекты'};
+
+    for (final task in tasks) {
+      final objectName = safeText(task['object_name'], fallback: 'Без объекта');
+      values.add(objectName);
+    }
+
+    return values.toList();
+  }
+
+  List<String> get statusFilterItems {
+    final values = <String>{'Все статусы'};
+
+    for (final task in tasks) {
+      final status = safeText(task['status'], fallback: 'Планируется');
+      values.add(status);
+    }
+
+    return values.toList();
+  }
+
+  List<Map<String, dynamic>> get filteredTasks {
+    var result = List<Map<String, dynamic>>.from(tasks);
+
+    if (selectedObject != 'Все объекты') {
+      result = result.where((task) {
+        final objectName = safeText(
+          task['object_name'],
+          fallback: 'Без объекта',
+        );
+        return objectName == selectedObject;
+      }).toList();
+    }
+
+    if (selectedStatus != 'Все статусы') {
+      result = result.where((task) {
+        final status = safeText(task['status'], fallback: 'Планируется');
+        return status == selectedStatus;
+      }).toList();
+    }
+
+    result.sort((a, b) {
+      final aCreatedAt = parseTaskDate(a['created_at']) ?? DateTime(2000);
+      final bCreatedAt = parseTaskDate(b['created_at']) ?? DateTime(2000);
+
+      final aDeadline = parseTaskDate(a['deadline']) ?? DateTime(2100);
+      final bDeadline = parseTaskDate(b['deadline']) ?? DateTime(2100);
+
+      switch (selectedSort) {
+        case 'Старые сверху':
+          return aCreatedAt.compareTo(bCreatedAt);
+
+        case 'Срок ближе':
+          return aDeadline.compareTo(bDeadline);
+
+        case 'Срок дальше':
+          return bDeadline.compareTo(aDeadline);
+
+        case 'Новые сверху':
+        default:
+          return bCreatedAt.compareTo(aCreatedAt);
+      }
+    });
+
+    return result;
+  }
+
+  bool get isFilterActive {
+    return selectedObject != 'Все объекты' ||
+        selectedStatus != 'Все статусы' ||
+        selectedSort != 'Новые сверху';
+  }
+
+  void resetFilters() {
+    setState(() {
+      selectedObject = 'Все объекты';
+      selectedStatus = 'Все статусы';
+      selectedSort = 'Новые сверху';
+    });
+  }
+
+  void openFilterSheet() {
+    String tempObject = selectedObject;
+    String tempStatus = selectedStatus;
+    String tempSort = selectedSort;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Container(
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 22),
+              decoration: const BoxDecoration(
+                color: Color(0xFFF4F6FA),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+              ),
+              child: SafeArea(
+                top: false,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 44,
+                          height: 5,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFD1D5DB),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      Row(
+                        children: [
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: const Color(
+                                0xFF1F6FEB,
+                              ).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                            child: const Icon(
+                              Icons.tune,
+                              color: Color(0xFF1F6FEB),
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Сортировка задач',
+                                  style: TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w900,
+                                    color: Color(0xFF111827),
+                                  ),
+                                ),
+                                SizedBox(height: 3),
+                                Text(
+                                  'Выбери объект, статус и порядок вывода',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.black54,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 22),
+
+                      _FilterDropdown(
+                        title: 'Объект строительства',
+                        value: tempObject,
+                        items: objectFilterItems,
+                        onChanged: (value) {
+                          if (value == null) return;
+
+                          setSheetState(() {
+                            tempObject = value;
+                          });
+                        },
+                      ),
+
+                      const SizedBox(height: 14),
+
+                      _FilterDropdown(
+                        title: 'Статус задачи',
+                        value: tempStatus,
+                        items: statusFilterItems,
+                        onChanged: (value) {
+                          if (value == null) return;
+
+                          setSheetState(() {
+                            tempStatus = value;
+                          });
+                        },
+                      ),
+
+                      const SizedBox(height: 14),
+
+                      _FilterDropdown(
+                        title: 'Сортировать',
+                        value: tempSort,
+                        items: const [
+                          'Новые сверху',
+                          'Старые сверху',
+                          'Срок ближе',
+                          'Срок дальше',
+                        ],
+                        onChanged: (value) {
+                          if (value == null) return;
+
+                          setSheetState(() {
+                            tempSort = value;
+                          });
+                        },
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      SizedBox(
+                        width: double.infinity,
+                        height: 54,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              selectedObject = tempObject;
+                              selectedStatus = tempStatus;
+                              selectedSort = tempSort;
+                            });
+
+                            Navigator.pop(sheetContext);
+                          },
+                          icon: const Icon(Icons.check),
+                          label: const Text('Применить'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF1F6FEB),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                            textStyle: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: TextButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              selectedObject = 'Все объекты';
+                              selectedStatus = 'Все статусы';
+                              selectedSort = 'Новые сверху';
+                            });
+
+                            Navigator.pop(sheetContext);
+                          },
+                          icon: const Icon(Icons.restart_alt),
+                          label: const Text('Сбросить фильтр'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: const Color(0xFF6B7280),
+                            textStyle: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   void showTaskDetails(Map<String, dynamic> task) {
@@ -395,6 +692,51 @@ class _TasksScreenState extends State<TasksScreen> {
     );
   }
 
+  Widget buildFilterInfo() {
+    if (!isFilterActive) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(22, 16, 22, 0),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1F6FEB).withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: const Color(0xFF1F6FEB).withValues(alpha: 0.12),
+          ),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.filter_alt, size: 20, color: Color(0xFF1F6FEB)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Фильтр: $selectedObject · $selectedStatus · $selectedSort',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xFF1F6FEB),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            IconButton(
+              onPressed: resetFilters,
+              icon: const Icon(Icons.close, size: 20),
+              color: const Color(0xFF1F6FEB),
+              tooltip: 'Сбросить',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget buildEmptyState() {
     return Center(
       child: Padding(
@@ -425,6 +767,53 @@ class _TasksScreenState extends State<TasksScreen> {
               'Когда задачи появятся на объектах, они будут здесь одним списком.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 14, color: Colors.black54),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget buildFilteredEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 86,
+              height: 86,
+              decoration: BoxDecoration(
+                color: const Color(0xFF8A63D2).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(28),
+              ),
+              child: const Icon(
+                Icons.manage_search,
+                color: Color(0xFF8A63D2),
+                size: 42,
+              ),
+            ),
+            const SizedBox(height: 18),
+            const Text(
+              'По фильтру задач нет',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Измени объект, статус или сбрось фильтр.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: Colors.black54),
+            ),
+            const SizedBox(height: 18),
+            ElevatedButton.icon(
+              onPressed: resetFilters,
+              icon: const Icon(Icons.restart_alt),
+              label: const Text('Сбросить фильтр'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1F6FEB),
+                foregroundColor: Colors.white,
+              ),
             ),
           ],
         ),
@@ -463,8 +852,75 @@ class _TasksScreenState extends State<TasksScreen> {
     );
   }
 
+  Widget buildTaskList() {
+    final visibleTasks = filteredTasks;
+
+    if (tasks.isEmpty) {
+      return buildEmptyState();
+    }
+
+    if (visibleTasks.isEmpty) {
+      return Column(
+        children: [
+          buildFilterInfo(),
+          Expanded(child: buildFilteredEmptyState()),
+        ],
+      );
+    }
+
+    return Column(
+      children: [
+        buildFilterInfo(),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: loadTasks,
+            child: ListView.separated(
+              padding: EdgeInsets.fromLTRB(
+                22,
+                isFilterActive ? 16 : 22,
+                22,
+                22,
+              ),
+              itemCount: visibleTasks.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 16),
+              itemBuilder: (context, index) {
+                final task = visibleTasks[index];
+
+                final title = safeText(task['title'], fallback: 'Без названия');
+                final objectName = safeText(task['object_name']);
+                final objectAddress = safeText(task['object_address']);
+                final executorName = safeText(task['executor_name']);
+                final status = safeText(
+                  task['status'],
+                  fallback: 'Планируется',
+                );
+                final createdAt = formatDate(task['created_at']);
+                final deadline = formatDate(task['deadline']);
+                final statusColor = getStatusColor(status);
+
+                return _TaskCard(
+                  title: title,
+                  objectName: objectName,
+                  objectAddress: objectAddress,
+                  executorName: executorName,
+                  status: status,
+                  createdAt: createdAt,
+                  deadline: deadline,
+                  statusColor: statusColor,
+                  onTap: () => showTaskDetails(task),
+                );
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final filterIcon = isFilterActive ? Icons.filter_alt : Icons.tune;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FA),
       appBar: AppBar(
@@ -476,6 +932,11 @@ class _TasksScreenState extends State<TasksScreen> {
         elevation: 0,
         actions: [
           IconButton(
+            onPressed: isLoading || tasks.isEmpty ? null : openFilterSheet,
+            icon: Icon(filterIcon),
+            tooltip: 'Сортировка',
+          ),
+          IconButton(
             onPressed: isLoading ? null : loadTasks,
             icon: const Icon(Icons.refresh),
             tooltip: 'Обновить',
@@ -486,46 +947,7 @@ class _TasksScreenState extends State<TasksScreen> {
           ? const Center(child: CircularProgressIndicator())
           : errorText.isNotEmpty
           ? buildErrorState()
-          : tasks.isEmpty
-          ? buildEmptyState()
-          : RefreshIndicator(
-              onRefresh: loadTasks,
-              child: ListView.separated(
-                padding: const EdgeInsets.all(22),
-                itemCount: tasks.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 16),
-                itemBuilder: (context, index) {
-                  final task = tasks[index];
-
-                  final title = safeText(
-                    task['title'],
-                    fallback: 'Без названия',
-                  );
-                  final objectName = safeText(task['object_name']);
-                  final objectAddress = safeText(task['object_address']);
-                  final executorName = safeText(task['executor_name']);
-                  final status = safeText(
-                    task['status'],
-                    fallback: 'Планируется',
-                  );
-                  final createdAt = formatDate(task['created_at']);
-                  final deadline = formatDate(task['deadline']);
-                  final statusColor = getStatusColor(status);
-
-                  return _TaskCard(
-                    title: title,
-                    objectName: objectName,
-                    objectAddress: objectAddress,
-                    executorName: executorName,
-                    status: status,
-                    createdAt: createdAt,
-                    deadline: deadline,
-                    statusColor: statusColor,
-                    onTap: () => showTaskDetails(task),
-                  );
-                },
-              ),
-            ),
+          : buildTaskList(),
     );
   }
 }
@@ -693,6 +1115,66 @@ class _TaskCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _FilterDropdown extends StatelessWidget {
+  final String title;
+  final String value;
+  final List<String> items;
+  final ValueChanged<String?> onChanged;
+
+  const _FilterDropdown({
+    required this.title,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final safeItems = items.contains(value) ? items : [value, ...items];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w900,
+            color: Color(0xFF6B7280),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: value,
+              isExpanded: true,
+              icon: const Icon(Icons.keyboard_arrow_down),
+              items: safeItems.map((item) {
+                return DropdownMenuItem<String>(
+                  value: item,
+                  child: Text(
+                    item,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                );
+              }).toList(),
+              onChanged: onChanged,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

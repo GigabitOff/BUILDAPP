@@ -1,8 +1,10 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../models/construction_object.dart';
 import '../../services/objects_service.dart';
+import '../../services/invites_service.dart';
 import 'object_tasks_screen.dart';
 import 'photo_reports_screen.dart';
 import 'object_materials_screen.dart';
@@ -22,6 +24,7 @@ class _ObjectDetailScreenState extends State<ObjectDetailScreen> {
 
   String userType = '';
   bool isAssigning = false;
+  bool isCreatingInvite = false;
 
   bool get isAdmin => userType == 'admin';
 
@@ -247,6 +250,66 @@ class _ObjectDetailScreenState extends State<ObjectDetailScreen> {
     }
   }
 
+  Future<void> shareProjectInvite() async {
+    if (isCreatingInvite) return;
+
+    setState(() {
+      isCreatingInvite = true;
+    });
+
+    try {
+      final result = await InvitesService.createProjectInvite(
+        objectId: object.id,
+        roleOnObject: 'executor',
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        isCreatingInvite = false;
+      });
+
+      if (result['success'] == true) {
+        final inviteLink = result['invite_link']?.toString() ?? '';
+
+        if (inviteLink.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Сервер не вернул ссылку приглашения'),
+            ),
+          );
+          return;
+        }
+
+        await Share.share(
+          'Тебя пригласили в проект BUILDAPP:\n\n'
+          '${object.name}\n'
+          '${object.address}\n\n'
+          '$inviteLink',
+          subject: 'Приглашение в BUILDAPP',
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              result['message']?.toString() ?? 'Не удалось создать приглашение',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        isCreatingInvite = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Ошибка создания приглашения: $e')),
+      );
+    }
+  }
+
   void openObjectTasks() {
     Navigator.push(
       context,
@@ -271,10 +334,8 @@ class _ObjectDetailScreenState extends State<ObjectDetailScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => ObjectMaterialsScreen(
-          objectId: object.id,
-          objectName: object.name,
-        ),
+        builder: (_) =>
+            ObjectMaterialsScreen(objectId: object.id, objectName: object.name),
       ),
     );
   }
@@ -283,10 +344,8 @@ class _ObjectDetailScreenState extends State<ObjectDetailScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => ObjectHistoryScreen(
-          objectId: object.id,
-          objectName: object.name,
-        ),
+        builder: (_) =>
+            ObjectHistoryScreen(objectId: object.id, objectName: object.name),
       ),
     );
   }
@@ -304,6 +363,20 @@ class _ObjectDetailScreenState extends State<ObjectDetailScreen> {
         ),
         backgroundColor: const Color(0xFFF4F6FA),
         elevation: 0,
+        actions: [
+          if (isAdmin)
+            IconButton(
+              icon: isCreatingInvite
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.share_outlined),
+              tooltip: 'Поделиться проектом',
+              onPressed: isCreatingInvite ? null : shareProjectInvite,
+            ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(22),
@@ -389,6 +462,18 @@ class _ObjectDetailScreenState extends State<ObjectDetailScreen> {
               onTap: isAssigning ? () {} : showAssignExecutorDialog,
             ),
 
+          if (isAdmin) const SizedBox(height: 14),
+
+          if (isAdmin)
+            _ActionCard(
+              icon: Icons.share_outlined,
+              title: isCreatingInvite
+                  ? 'Создаём ссылку...'
+                  : 'Поделиться проектом',
+              subtitle: 'Отправить ссылку в Viber, Telegram, Facebook или SMS',
+              onTap: isCreatingInvite ? () {} : shareProjectInvite,
+            ),
+
           if (isAdmin) const SizedBox(height: 18),
 
           _InfoBlock(
@@ -403,6 +488,11 @@ class _ObjectDetailScreenState extends State<ObjectDetailScreen> {
                 icon: Icons.engineering_outlined,
                 label: 'Ответственный',
                 value: object.responsible,
+              ),
+              _InfoRow(
+                icon: Icons.person_pin_circle_outlined,
+                label: 'Исполнитель',
+                value: object.executorName,
               ),
               _InfoRow(
                 icon: Icons.calendar_month_outlined,

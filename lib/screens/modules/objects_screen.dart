@@ -87,7 +87,8 @@ class _ObjectsScreenState extends State<ObjectsScreen> {
           item.address.toLowerCase().contains(query) ||
           item.status.toLowerCase().contains(query) ||
           item.customer.toLowerCase().contains(query) ||
-          item.responsible.toLowerCase().contains(query);
+          item.responsible.toLowerCase().contains(query) ||
+          item.executorName.toLowerCase().contains(query);
     }).toList();
   }
 
@@ -361,8 +362,12 @@ class _ObjectCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final responsibleText = object.responsible.isEmpty
-        ? 'Ответственный не указан'
+        ? 'Ответственный: не указан'
         : 'Ответственный: ${object.responsible}';
+
+    final executorText = object.executorName.isEmpty
+        ? 'Исполнитель: не назначен'
+        : 'Исполнитель: ${object.executorName}';
 
     return InkWell(
       onTap: onTap,
@@ -428,18 +433,34 @@ class _ObjectCard extends StatelessWidget {
             const SizedBox(height: 16),
 
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _StatusBadge(text: object.status, color: statusColor),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Text(
-                    responsibleText,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: Colors.black54,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        responsibleText,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.black54,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        executorText,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.black54,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
