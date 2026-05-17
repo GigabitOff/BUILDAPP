@@ -1,4 +1,4 @@
-class ObjectHistoryItem {
+﻿class ObjectHistoryItem {
   final int id;
   final int constructionObjectId;
   final int? userId;
@@ -32,3 +32,7 @@ class ObjectHistoryItem {
     );
   }
 }
+
+
+
+

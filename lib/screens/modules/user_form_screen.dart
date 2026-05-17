@@ -49,7 +49,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Пользователь создан')));
+      ).showSnackBar(const SnackBar(content: Text('Користувача створено')));
 
       Navigator.pop(context, true);
     } catch (e) {
@@ -113,9 +113,9 @@ class _UserFormScreenState extends State<UserFormScreen> {
           value: usertype,
           isExpanded: true,
           items: const [
-            DropdownMenuItem(value: 'executor', child: Text('Исполнитель')),
+            DropdownMenuItem(value: 'executor', child: Text('Виконавець')),
             DropdownMenuItem(value: 'manager', child: Text('Менеджер')),
-            DropdownMenuItem(value: 'admin', child: Text('Администратор')),
+            DropdownMenuItem(value: 'admin', child: Text('Адміністратор')),
           ],
           onChanged: (value) {
             if (value == null) return;
@@ -143,7 +143,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
           SizedBox(width: 12),
           Expanded(
             child: Text(
-              'После создания исполнителя его можно будет привязать к объекту строительства.',
+              'После создания исполнителя его можно будет привязать к об’єкту строительства.',
               style: TextStyle(
                 color: Color(0xFF1F6FEB),
                 fontWeight: FontWeight.w700,
@@ -161,7 +161,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
       backgroundColor: const Color(0xFFF4F6FA),
       appBar: AppBar(
         title: const Text(
-          'Создать пользователя',
+          'Створити користувача',
           style: TextStyle(fontWeight: FontWeight.w800),
         ),
         backgroundColor: const Color(0xFFF4F6FA),
@@ -178,7 +178,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
 
             field(
               controller: nameController,
-              label: 'Имя',
+              label: 'Ім’я',
               icon: Icons.person_outline,
             ),
 
@@ -229,7 +229,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
                         ),
                       )
                     : const Icon(Icons.save_outlined),
-                label: Text(isSaving ? 'Сохраняю...' : 'Создать пользователя'),
+                label: Text(isSaving ? 'Зберігаю...' : 'Створити користувача'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1F6FEB),
                   foregroundColor: Colors.white,
@@ -249,3 +249,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
     );
   }
 }
+
+
+
+

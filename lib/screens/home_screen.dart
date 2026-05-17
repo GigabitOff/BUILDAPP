@@ -3,9 +3,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/auth_service.dart';
 import '../services/dashboard_service.dart';
+import '../services/license_exception.dart';
 import '../services/users_service.dart';
 
 import 'phone_login_screen.dart';
+import 'license_blocked_screen.dart';
 
 import 'modules/auth_check_screen.dart';
 import 'modules/notifications_screen.dart';
@@ -25,6 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final AuthService authService = AuthService();
 
   bool isLoading = true;
+  bool isHeaderExpanded = false;
 
   String userName = '';
   String userEmail = '';
@@ -34,6 +37,8 @@ class _HomeScreenState extends State<HomeScreen> {
   int usersCount = 0;
   int objectsCount = 0;
   int tasksCount = 0;
+  int taskCommentsTotal = 0;
+  int taskCommentsNew = 0;
   int photoReportsCount = 0;
 
   bool get isAdmin {
@@ -50,13 +55,28 @@ class _HomeScreenState extends State<HomeScreen> {
     final prefs = await SharedPreferences.getInstance();
 
     setState(() {
-      userName = prefs.getString('user_name') ?? 'Пользователь';
+      userName = prefs.getString('user_name') ?? 'Користувач';
       userEmail = prefs.getString('user_email') ?? '';
       userType = prefs.getString('user_type') ?? '';
       isLoading = false;
     });
 
     await loadDashboardCounts();
+  }
+
+  void _openLicenseBlocked(LicenseException e) {
+    if (!mounted) return;
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LicenseBlockedScreen(
+          message: e.message,
+          code: e.code,
+        ),
+      ),
+      (route) => false,
+    );
   }
 
   Future<void> loadDashboardCounts() async {
@@ -69,6 +89,9 @@ class _HomeScreenState extends State<HomeScreen> {
         try {
           final users = await UsersService.getUsers();
           loadedUsersCount = users.length;
+        } on LicenseException catch (e) {
+          _openLicenseBlocked(e);
+          return;
         } catch (_) {
           loadedUsersCount = 0;
         }
@@ -81,8 +104,12 @@ class _HomeScreenState extends State<HomeScreen> {
         usersCount = loadedUsersCount;
         objectsCount = counts['objects']['total'] ?? 0;
         tasksCount = counts['tasks']['total'] ?? 0;
+        taskCommentsTotal = counts['comments']?['total'] ?? 0;
+        taskCommentsNew = counts['comments']?['new'] ?? 0;
         photoReportsCount = counts['photoReports']['total'] ?? 0;
       });
+    } on LicenseException catch (e) {
+      _openLicenseBlocked(e);
     } catch (_) {
       if (!mounted) return;
 
@@ -91,6 +118,8 @@ class _HomeScreenState extends State<HomeScreen> {
         usersCount = 0;
         objectsCount = 0;
         tasksCount = 0;
+        taskCommentsTotal = 0;
+        taskCommentsNew = 0;
         photoReportsCount = 0;
       });
     }
@@ -129,6 +158,92 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget buildHeader() {
+    return InkWell(
+      onTap: () {
+        setState(() {
+          isHeaderExpanded = !isHeaderExpanded;
+        });
+      },
+      borderRadius: BorderRadius.circular(26),
+      child: Container(
+        padding: const EdgeInsets.all(22),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF1F6FEB), Color(0xFF4C8DFF)],
+          ),
+          borderRadius: BorderRadius.circular(26),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Ласкаво просимо',
+                        style: TextStyle(color: Colors.white70, fontSize: 15),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        userName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 25,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  isHeaderExpanded
+                      ? Icons.keyboard_arrow_up_rounded
+                      : Icons.keyboard_arrow_down_rounded,
+                  color: Colors.white,
+                  size: 30,
+                ),
+              ],
+            ),
+            if (isHeaderExpanded) ...[
+              const SizedBox(height: 14),
+              if (userEmail.isNotEmpty)
+                Text(
+                  userEmail,
+                  style: const TextStyle(color: Colors.white70, fontSize: 15),
+                ),
+              if (userType.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    'Роль: $userType',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget buildCard({
     required IconData icon,
     required String title,
@@ -136,6 +251,7 @@ class _HomeScreenState extends State<HomeScreen> {
     required VoidCallback onTap,
     int? badgeCount,
     bool isNew = false,
+    List<Widget> extraLines = const [],
   }) {
     return InkWell(
       onTap: onTap,
@@ -164,9 +280,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               child: Icon(icon, color: const Color(0xFF1F6FEB), size: 28),
             ),
-
             const SizedBox(width: 16),
-
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -183,10 +297,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     subtitle,
                     style: const TextStyle(fontSize: 14, color: Colors.black54),
                   ),
+                  if (extraLines.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    ...extraLines,
+                  ],
                 ],
               ),
             ),
-
             if (badgeCount != null)
               Container(
                 margin: const EdgeInsets.only(right: 10),
@@ -207,11 +324,58 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
-
             const Icon(Icons.chevron_right, color: Colors.black38),
           ],
         ),
       ),
+    );
+  }
+
+
+  Widget buildTaskCommentsLine() {
+    final hasNew = taskCommentsNew > 0;
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 6,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.chat_bubble_outline_rounded,
+              size: 15,
+              color: const Color(0xFF1F6FEB),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              'Коментарі',
+              style: TextStyle(
+                color: Colors.black.withValues(alpha: 0.55),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+        Text(
+          'Всього: $taskCommentsTotal',
+          style: TextStyle(
+            color: Colors.black.withValues(alpha: 0.55),
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        Text(
+          'Нові: $taskCommentsNew',
+          style: TextStyle(
+            color: hasNew ? Colors.redAccent : Colors.black.withValues(alpha: 0.45),
+            fontSize: 12,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
     );
   }
 
@@ -229,7 +393,7 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: const Color(0xFFF4F6FA),
       appBar: AppBar(
         title: const Text(
-          'BUILDAPP',
+          'EVENTHESAPP',
           style: TextStyle(fontWeight: FontWeight.w800),
         ),
         backgroundColor: const Color(0xFFF4F6FA),
@@ -241,7 +405,7 @@ class _HomeScreenState extends State<HomeScreen> {
               IconButton(
                 onPressed: openNotifications,
                 icon: const Icon(Icons.notifications_none_outlined),
-                tooltip: 'Уведомления',
+                tooltip: 'Сповіщення',
               ),
               if (unreadNotificationsCount > 0)
                 Positioned(
@@ -284,121 +448,59 @@ class _HomeScreenState extends State<HomeScreen> {
         child: ListView(
           padding: const EdgeInsets.all(22),
           children: [
-            Container(
-              padding: const EdgeInsets.all(22),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF1F6FEB), Color(0xFF4C8DFF)],
-                ),
-                borderRadius: BorderRadius.circular(26),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Добро пожаловать',
-                    style: TextStyle(color: Colors.white70, fontSize: 15),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    userName,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 26,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    userEmail,
-                    style: const TextStyle(color: Colors.white70, fontSize: 15),
-                  ),
-                  if (userType.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 7,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        'Роль: $userType',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-
+            buildHeader(),
             const SizedBox(height: 24),
-
-            buildCard(
-              icon: Icons.verified_user_outlined,
-              title: 'Проверить авторизацию',
-              subtitle: 'Проверка токена через /api/me',
-              onTap: () => openPage(const AuthCheckScreen()),
-            ),
-
-            const SizedBox(height: 16),
-
             buildCard(
               icon: Icons.notifications_none_outlined,
-              title: 'Уведомления',
+              title: 'Сповіщення',
               subtitle: unreadNotificationsCount > 0
-                  ? 'Непрочитанных: $unreadNotificationsCount'
-                  : 'Изменения по объектам',
+                  ? 'Непрочитані: $unreadNotificationsCount'
+                  : 'Зміни по об’єктах',
               badgeCount: unreadNotificationsCount,
               isNew: unreadNotificationsCount > 0,
               onTap: openNotifications,
             ),
-
+            const SizedBox(height: 16),
+            buildCard(
+              icon: Icons.circle_outlined,
+              title: 'Об’єкти',
+              subtitle: 'Усього об’єктів: $objectsCount',
+              badgeCount: objectsCount,
+              onTap: () => openPage(const ObjectsScreen()),
+            ),
+            const SizedBox(height: 16),
+            buildCard(
+              icon: Icons.task_alt_outlined,
+              title: 'Завдання',
+              subtitle: 'Усього завдань: $tasksCount',
+              badgeCount: tasksCount,
+              extraLines: [buildTaskCommentsLine()],
+              onTap: () => openPage(const TasksScreen()),
+            ),
             if (isAdmin) ...[
               const SizedBox(height: 16),
-
               buildCard(
                 icon: Icons.people_alt_outlined,
-                title: 'Пользователи',
-                subtitle: 'Всего пользователей: $usersCount',
+                title: 'Користувачі',
+                subtitle: 'Усього користувачів: $usersCount',
                 badgeCount: usersCount,
                 onTap: openUsers,
               ),
             ],
-
             const SizedBox(height: 16),
-
-            buildCard(
-              icon: Icons.apartment_outlined,
-              title: 'Объекты строительства',
-              subtitle: 'Всего объектов: $objectsCount',
-              badgeCount: objectsCount,
-              onTap: () => openPage(const ObjectsScreen()),
-            ),
-
-            const SizedBox(height: 16),
-
-            buildCard(
-              icon: Icons.task_alt_outlined,
-              title: 'Задачи',
-              subtitle: 'Всего задач: $tasksCount',
-              badgeCount: tasksCount,
-              onTap: () => openPage(const TasksScreen()),
-            ),
-
-            const SizedBox(height: 16),
-
             buildCard(
               icon: Icons.photo_camera_outlined,
-              title: 'Фотоотчёты',
-              subtitle: 'Всего фотоотчётов: $photoReportsCount',
+              title: 'Фотозвіти',
+              subtitle: 'Усього фотозвітів: $photoReportsCount',
               badgeCount: photoReportsCount,
               onTap: () => openPage(const PhotoReportsScreen()),
+            ),
+            const SizedBox(height: 16),
+            buildCard(
+              icon: Icons.verified_user_outlined,
+              title: 'Перевірити авторизацію',
+              subtitle: 'Перевірка токена через /api/me',
+              onTap: () => openPage(const AuthCheckScreen()),
             ),
           ],
         ),

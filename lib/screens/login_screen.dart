@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
 import 'home_screen.dart';
@@ -14,7 +14,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final AuthService authService = AuthService();
 
   final TextEditingController emailController = TextEditingController(
-    text: 'admin@buildapp.local',
+    text: 'admin@EVENTHESAPP.local',
   );
 
   final TextEditingController passwordController = TextEditingController(
@@ -31,7 +31,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (email.isEmpty || password.isEmpty) {
       setState(() {
-        errorMessage = 'Введите email и пароль';
+        errorMessage = 'Введіть email і пароль';
       });
       return;
     }
@@ -111,7 +111,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 18),
                     const Text(
-                      'BUILDAPP',
+                      'EVENTHESAPP',
                       style: TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.w900,
@@ -120,7 +120,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 6),
                     const Text(
-                      'Контроль строительства',
+                      'Контроль об’єктів',
                       style: TextStyle(fontSize: 16, color: Colors.black54),
                     ),
                     const SizedBox(height: 34),
@@ -130,7 +130,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       keyboardType: TextInputType.emailAddress,
                       decoration: InputDecoration(
                         labelText: 'Email',
-                        hintText: 'Введите email',
+                        hintText: 'Введіть email',
                         prefixIcon: const Icon(Icons.email_outlined),
                         filled: true,
                         fillColor: const Color(0xFFF7F8FA),
@@ -148,7 +148,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       obscureText: obscurePassword,
                       decoration: InputDecoration(
                         labelText: 'Пароль',
-                        hintText: 'Введите пароль',
+                        hintText: 'Введіть пароль',
                         prefixIcon: const Icon(Icons.lock_outline),
                         suffixIcon: IconButton(
                           onPressed: () {
@@ -215,7 +215,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                               )
                             : const Text(
-                                'Войти',
+                                'Увійти',
                                 style: TextStyle(
                                   fontSize: 17,
                                   fontWeight: FontWeight.w800,
@@ -227,7 +227,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 18),
 
                     const Text(
-                      'Вход через сервер BUILDAPP',
+                      'Вхід через сервер EVENTHESAPP',
                       style: TextStyle(fontSize: 13, color: Colors.black45),
                     ),
                   ],
@@ -240,3 +240,8 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
+
+
+
+
+

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../services/auth_service.dart';
+import '../../services/license_exception.dart';
+import '../license_blocked_screen.dart';
 
 class AuthCheckScreen extends StatefulWidget {
   const AuthCheckScreen({super.key});
@@ -13,7 +15,7 @@ class _AuthCheckScreenState extends State<AuthCheckScreen> {
   final AuthService authService = AuthService();
 
   bool isLoading = false;
-  String resultText = 'Нажми кнопку, чтобы проверить токен через /api/me';
+  String resultText = 'Натисніть кнопку, щоб перевірити токен через /api/me';
 
   Future<void> checkToken() async {
     setState(() {
@@ -28,14 +30,27 @@ class _AuthCheckScreenState extends State<AuthCheckScreen> {
 
       setState(() {
         resultText =
-            '✅ Токен рабочий\n\nПользователь: ${data['user']['name']}\nEmail: ${data['user']['email'] ?? ''}';
+            '✅ Токен робочий\n\nКористувач: ${data['user']['name']}\nEmail: ${data['user']['email'] ?? ''}';
       });
+    } on LicenseException catch (e) {
+      if (!mounted) return;
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => LicenseBlockedScreen(
+            message: e.message,
+            code: e.code,
+          ),
+        ),
+        (route) => false,
+      );
     } catch (e) {
       if (!mounted) return;
 
       setState(() {
         resultText =
-            '❌ Ошибка\n\n${e.toString().replaceFirst('Exception: ', '')}';
+            '❌ Помилка\n\n${e.toString().replaceFirst('Exception: ', '')}';
       });
     } finally {
       if (mounted) {
@@ -52,7 +67,7 @@ class _AuthCheckScreenState extends State<AuthCheckScreen> {
       backgroundColor: const Color(0xFFF4F6FA),
       appBar: AppBar(
         title: const Text(
-          'Проверка авторизации',
+          'Перевірка авторизації',
           style: TextStyle(fontWeight: FontWeight.w800),
         ),
         backgroundColor: const Color(0xFFF4F6FA),
@@ -65,7 +80,7 @@ class _AuthCheckScreenState extends State<AuthCheckScreen> {
           children: [
             _PageCard(
               icon: Icons.verified_user_outlined,
-              title: 'Проверка токена',
+              title: 'Перевірка токена',
               subtitle: resultText,
             ),
             const SizedBox(height: 20),
@@ -81,7 +96,7 @@ class _AuthCheckScreenState extends State<AuthCheckScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.refresh),
-                label: Text(isLoading ? 'Проверяем...' : 'Проверить токен'),
+                label: Text(isLoading ? 'Проверяем...' : 'Перевірити токен'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1F6FEB),
                   foregroundColor: Colors.white,
@@ -166,3 +181,7 @@ class _PageCard extends StatelessWidget {
     );
   }
 }
+
+
+
+

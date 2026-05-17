@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 import '../../models/object_notification.dart';
 import '../../services/notifications_service.dart';
@@ -70,7 +70,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Все уведомления отмечены прочитанными')),
+        const SnackBar(content: Text('Усі сповіщення позначені як прочитані')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -114,7 +114,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         return Icons.history_outlined;
       case 'object_created':
       case 'executor_assigned':
-        return Icons.apartment_outlined;
+        return Icons.circle_outlined;
       default:
         return Icons.notifications_outlined;
     }
@@ -230,14 +230,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             SizedBox(height: 18),
             Center(
               child: Text(
-                'Уведомлений пока нет',
+                'Сповіщень поки немає',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
               ),
             ),
             SizedBox(height: 8),
             Center(
               child: Text(
-                'Когда по объектам будут изменения, они появятся здесь.',
+                'Коли по об’єктах будуть зміни, вони з’являться тут.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.black54),
               ),
@@ -262,14 +262,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       backgroundColor: const Color(0xFFF4F6FA),
       appBar: AppBar(
         title: const Text(
-          'Уведомления',
+          'Сповіщення',
           style: TextStyle(fontWeight: FontWeight.w800),
         ),
         backgroundColor: const Color(0xFFF4F6FA),
         elevation: 0,
         actions: [
           IconButton(
-            tooltip: onlyUnread ? 'Показать все' : 'Только непрочитанные',
+            tooltip: onlyUnread ? 'Показати всі' : 'Тільки непрочитані',
             onPressed: () {
               setState(() {
                 onlyUnread = !onlyUnread;
@@ -279,7 +279,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             icon: Icon(onlyUnread ? Icons.mark_email_unread : Icons.filter_alt_outlined),
           ),
           IconButton(
-            tooltip: 'Отметить все прочитанными',
+            tooltip: 'Позначити всі як прочитані',
             onPressed: notifications.any((item) => !item.isRead) ? markAllAsRead : null,
             icon: const Icon(Icons.done_all),
           ),
@@ -315,3 +315,7 @@ class _Badge extends StatelessWidget {
     );
   }
 }
+
+
+
+

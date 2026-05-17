@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,7 +12,7 @@ class NotificationsService {
     final token = prefs.getString('auth_token');
 
     if (token == null || token.isEmpty) {
-      throw Exception('Токен авторизации не найден');
+      throw Exception('Токен авторизації не знайдено');
     }
 
     return token;
@@ -34,7 +34,7 @@ class NotificationsService {
     final Map<String, dynamic> data = jsonDecode(response.body);
 
     if (response.statusCode != 200 || data['success'] != true) {
-      throw Exception(data['message'] ?? 'Ошибка получения уведомлений');
+      throw Exception(data['message'] ?? 'Помилка отримання сповіщень');
     }
 
     final List items = data['notifications'] ?? [];
@@ -51,7 +51,7 @@ class NotificationsService {
     final Map<String, dynamic> data = jsonDecode(response.body);
 
     if (response.statusCode != 200 || data['success'] != true) {
-      throw Exception(data['message'] ?? 'Ошибка получения счётчика уведомлений');
+      throw Exception(data['message'] ?? 'Помилка отримання лічильника сповіщень');
     }
 
     return int.tryParse(data['unread_count'].toString()) ?? 0;
@@ -67,7 +67,7 @@ class NotificationsService {
     final Map<String, dynamic> data = jsonDecode(response.body);
 
     if (response.statusCode != 200 || data['success'] != true) {
-      throw Exception(data['message'] ?? 'Ошибка обновления уведомления');
+      throw Exception(data['message'] ?? 'Помилка оновлення сповіщення');
     }
   }
 
@@ -81,7 +81,11 @@ class NotificationsService {
     final Map<String, dynamic> data = jsonDecode(response.body);
 
     if (response.statusCode != 200 || data['success'] != true) {
-      throw Exception(data['message'] ?? 'Ошибка обновления уведомлений');
+      throw Exception(data['message'] ?? 'Помилка оновлення сповіщень');
     }
   }
 }
+
+
+
+

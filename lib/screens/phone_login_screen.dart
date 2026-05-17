@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../services/auth_service.dart';
+import '../services/license_exception.dart';
 import 'pin_code_screen.dart';
 import 'register_screen.dart';
+import 'license_blocked_screen.dart';
 
 class PhoneLoginScreen extends StatefulWidget {
   const PhoneLoginScreen({super.key});
@@ -25,7 +27,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
     final phone = _phoneController.text.replaceAll(RegExp(r'\D'), '');
 
     if (phone.length != 12) {
-      _showMessage('Введите полный номер телефона');
+      _showMessage('Введіть повний номер телефону');
       return;
     }
 
@@ -39,6 +41,19 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => PinCodeScreen(phone: phone)),
+      );
+    } on LicenseException catch (e) {
+      if (!mounted) return;
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => LicenseBlockedScreen(
+            message: e.message,
+            code: e.code,
+          ),
+        ),
+        (route) => false,
       );
     } catch (e) {
       if (!mounted) return;
@@ -80,12 +95,12 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
       child: Column(
         children: [
           const Text(
-            'Нет аккаунта?',
+            'Немає акаунта?',
             style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 6),
           Text(
-            'Зарегистрируйте компанию и создайте первый аккаунт администратора.',
+            'Зареєструйте компанію та створіть перший акаунт адміністратора.',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 13,
@@ -101,7 +116,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
               onPressed: _loading ? null : _openRegister,
               icon: const Icon(Icons.person_add_alt_1_outlined),
               label: const Text(
-                'Зарегистрироваться',
+                'Зареєструватися',
                 style: TextStyle(fontWeight: FontWeight.w800),
               ),
               style: OutlinedButton.styleFrom(
@@ -152,7 +167,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                     ),
                     const SizedBox(height: 18),
                     const Text(
-                      'BUILDAPP',
+                      'EVENTHESAPP',
                       style: TextStyle(
                         fontSize: 26,
                         fontWeight: FontWeight.w800,
@@ -161,7 +176,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Контроль строительства',
+                      'Контроль об’єктів',
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey.shade600,
@@ -171,7 +186,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                     const Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
-                        'Вход по телефону',
+                        'Вхід за телефоном',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
@@ -182,7 +197,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                     Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
-                        'Введите номер, который закреплён за пользователем',
+                        'Введіть номер, який закріплений за користувачем',
                         style: TextStyle(
                           fontSize: 13,
                           color: Colors.grey.shade600,
@@ -230,7 +245,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                                 ),
                               )
                             : const Text(
-                                'Получить PIN-код',
+                                'Отримати PIN-код',
                                 style: TextStyle(fontWeight: FontWeight.w700),
                               ),
                       ),
@@ -249,7 +264,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          'Вход через сервер BUILDAPP',
+                          'Вхід через сервер EVENTHESAPP',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey.shade500,
@@ -319,3 +334,8 @@ class UkrainianPhoneFormatter extends TextInputFormatter {
     );
   }
 }
+
+
+
+
+

@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/app_user.dart';
 import 'api_config.dart';
+import 'license_exception.dart';
 
 class UsersService {
   static Future<String?> _getToken() async {
@@ -23,7 +24,10 @@ class UsersService {
     final data = jsonDecode(response.body);
 
     if (response.statusCode != 200 || data['success'] != true) {
-      throw Exception(data['message'] ?? 'Ошибка получения пользователей');
+      if (isLicenseErrorCode(data['code']?.toString())) {
+        throwLicenseIfNeeded(data);
+      }
+      throw Exception(data['message'] ?? 'Помилка отримання користувачів');
     }
 
     final List list = data['users'] ?? [];
@@ -60,7 +64,10 @@ class UsersService {
 
     if ((response.statusCode != 200 && response.statusCode != 201) ||
         data['success'] != true) {
-      throw Exception(data['message'] ?? 'Ошибка создания пользователя');
+      if (isLicenseErrorCode(data['code']?.toString())) {
+        throwLicenseIfNeeded(data);
+      }
+      throw Exception(data['message'] ?? 'Помилка створення користувача');
     }
 
     return AppUser.fromJson(data['user']);
@@ -77,7 +84,14 @@ class UsersService {
     final data = jsonDecode(response.body);
 
     if (response.statusCode != 200 || data['success'] != true) {
-      throw Exception(data['message'] ?? 'Ошибка удаления пользователя');
+      if (isLicenseErrorCode(data['code']?.toString())) {
+        throwLicenseIfNeeded(data);
+      }
+      throw Exception(data['message'] ?? 'Помилка видалення користувача');
     }
   }
 }
+
+
+
+

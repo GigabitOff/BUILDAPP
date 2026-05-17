@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -28,7 +28,7 @@ class MaterialsService {
     final data = jsonDecode(response.body);
 
     if (response.statusCode != 200 || data['success'] != true) {
-      throw Exception(data['message'] ?? 'Ошибка получения материалов');
+      throw Exception(data['message'] ?? 'Помилка отримання матеріалів');
     }
 
     final List materialsJson = data['materials'] ?? [];
@@ -70,7 +70,7 @@ class MaterialsService {
 
     if ((response.statusCode != 200 && response.statusCode != 201) ||
         data['success'] != true) {
-      throw Exception(data['message'] ?? 'Ошибка добавления материала');
+      throw Exception(data['message'] ?? 'Помилка додавання матеріалу');
     }
 
     return ObjectMaterial.fromJson(data['material']);
@@ -107,7 +107,7 @@ class MaterialsService {
     final data = jsonDecode(response.body);
 
     if (response.statusCode != 200 || data['success'] != true) {
-      throw Exception(data['message'] ?? 'Ошибка обновления материала');
+      throw Exception(data['message'] ?? 'Помилка оновлення матеріалу');
     }
 
     return ObjectMaterial.fromJson(data['material']);
@@ -132,7 +132,11 @@ class MaterialsService {
     final data = jsonDecode(response.body);
 
     if (response.statusCode != 200 || data['success'] != true) {
-      throw Exception(data['message'] ?? 'Ошибка удаления материала');
+      throw Exception(data['message'] ?? 'Помилка видалення матеріалу');
     }
   }
 }
+
+
+
+

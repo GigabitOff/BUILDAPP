@@ -59,7 +59,7 @@ class _ObjectHistoryScreenState extends State<ObjectHistoryScreen> {
       case 'created':
         return 'Создание';
       case 'updated':
-        return 'Изменение';
+        return 'Зміна';
       case 'task':
         return 'Задача';
       case 'photo':
@@ -67,7 +67,7 @@ class _ObjectHistoryScreenState extends State<ObjectHistoryScreen> {
       case 'material':
         return 'Материал';
       case 'executor':
-        return 'Исполнитель';
+        return 'Виконавець';
       case 'manual':
         return 'Запись';
       default:
@@ -163,7 +163,7 @@ class _ObjectHistoryScreenState extends State<ObjectHistoryScreen> {
             }
 
             return AlertDialog(
-              title: const Text('Добавить запись'),
+              title: const Text('Додати запись'),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -179,8 +179,8 @@ class _ObjectHistoryScreenState extends State<ObjectHistoryScreen> {
                       controller: descriptionController,
                       maxLines: 4,
                       decoration: const InputDecoration(
-                        labelText: 'Описание',
-                        hintText: 'Что произошло по объекту',
+                        labelText: 'Опис',
+                        hintText: 'Что произошло по об’єкту',
                       ),
                     ),
                   ],
@@ -189,7 +189,7 @@ class _ObjectHistoryScreenState extends State<ObjectHistoryScreen> {
               actions: [
                 TextButton(
                   onPressed: isSaving ? null : () => Navigator.pop(context, false),
-                  child: const Text('Отмена'),
+                  child: const Text('Скасувати'),
                 ),
                 ElevatedButton(
                   onPressed: isSaving ? null : save,
@@ -199,7 +199,7 @@ class _ObjectHistoryScreenState extends State<ObjectHistoryScreen> {
                           height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('Добавить'),
+                      : const Text('Додати'),
                 ),
               ],
             );
@@ -336,13 +336,13 @@ class _ObjectHistoryScreenState extends State<ObjectHistoryScreen> {
             Icon(Icons.history_outlined, size: 64, color: Colors.black26),
             SizedBox(height: 16),
             Text(
-              'Истории пока нет',
+              'Історії поки немає',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
             ),
             SizedBox(height: 6),
             Text(
-              'События по объекту появятся здесь.',
+              'События по об’єкту появятся здесь.',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.black54),
             ),
@@ -369,7 +369,7 @@ class _ObjectHistoryScreenState extends State<ObjectHistoryScreen> {
       backgroundColor: const Color(0xFFF4F6FA),
       appBar: AppBar(
         title: Text(
-          'История: ${widget.objectName}',
+          'Історія: ${widget.objectName}',
           style: const TextStyle(fontWeight: FontWeight.w800),
         ),
         backgroundColor: const Color(0xFFF4F6FA),
@@ -389,3 +389,7 @@ class _ObjectHistoryScreenState extends State<ObjectHistoryScreen> {
     );
   }
 }
+
+
+
+

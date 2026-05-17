@@ -1,4 +1,4 @@
-class AppUser {
+﻿class AppUser {
   final int id;
   final int? roleId;
   final int? idLk;
@@ -50,18 +50,18 @@ class AppUser {
 
   String get roleTitle {
     if (usertype == 'admin' || roleId == 1) {
-      return 'Администратор';
+      return 'Адміністратор';
     }
 
     if (usertype == '2' || usertype == 'executor' || roleId == 2) {
-      return 'Исполнитель';
+      return 'Виконавець';
     }
 
     if (usertype == 'manager' || roleId == 3) {
       return 'Менеджер';
     }
 
-    return usertype.isEmpty ? 'Пользователь' : usertype;
+    return usertype.isEmpty ? 'Користувач' : usertype;
   }
 
   bool get isAdmin {
@@ -76,3 +76,8 @@ class AppUser {
     return usertype == 'manager' || roleId == 3;
   }
 }
+
+
+
+
+

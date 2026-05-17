@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api_config.dart';
+import 'license_exception.dart';
 
 class DashboardService {
   static Future<Map<String, dynamic>> getCounts() async {
@@ -11,7 +12,7 @@ class DashboardService {
     final token = prefs.getString('auth_token');
 
     if (token == null || token.isEmpty) {
-      throw Exception('Токен не найден');
+      throw Exception('Токен не знайдено');
     }
 
     final url = Uri.parse('${ApiConfig.baseUrl}/api/dashboard/counts');
@@ -29,6 +30,13 @@ class DashboardService {
       return data['counts'];
     }
 
-    throw Exception(data['message'] ?? 'Ошибка получения счетчиков');
+    if (isLicenseErrorCode(data['code']?.toString())) {
+      throwLicenseIfNeeded(data);
+    }
+
+    throw Exception(data['message'] ?? 'Помилка отримання лічильників');
   }
 }
+
+
+

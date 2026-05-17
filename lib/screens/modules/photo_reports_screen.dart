@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -91,18 +91,18 @@ class _PhotoReportsScreenState extends State<PhotoReportsScreen> {
 
               return {
                 'id': '${item['id'] ?? ''}',
-                'title': comment.isEmpty ? 'Фото с объекта' : comment,
-                'object': widget.objectName ?? 'Объект',
+                'title': comment.isEmpty ? 'Фото с об’єкта' : comment,
+                'object': widget.objectName ?? 'Об’єкт',
                 'date': '${item['created_at'] ?? ''}',
                 'photoPath': '',
                 'photoUrl': '${item['photo_url'] ?? ''}',
-                'userName': '${item['user_name'] ?? 'Пользователь'}',
+                'userName': '${item['user_name'] ?? 'Користувач'}',
               };
             }).toList(),
           );
         });
       } else {
-        throw Exception(data['message'] ?? 'Ошибка загрузки фотоотчётов');
+        throw Exception(data['message'] ?? 'Ошибка загрузки фотозвітів');
       }
     } catch (e) {
       if (!mounted) return;
@@ -110,7 +110,7 @@ class _PhotoReportsScreenState extends State<PhotoReportsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Не удалось загрузить фотоотчёты: ${e.toString().replaceFirst('Exception: ', '')}',
+            'Не вдалося завантажити фотозвіти: ${e.toString().replaceFirst('Exception: ', '')}',
           ),
         ),
       );
@@ -154,7 +154,7 @@ class _PhotoReportsScreenState extends State<PhotoReportsScreen> {
     if (!isObjectMode) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Сначала выбери объект')));
+      ).showSnackBar(const SnackBar(content: Text('Спочатку обери об’єкт')));
       return;
     }
 
@@ -175,7 +175,7 @@ class _PhotoReportsScreenState extends State<PhotoReportsScreen> {
                 const Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    'Добавить фото',
+                    'Додати фото',
                     style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
                   ),
                 ),
@@ -192,8 +192,8 @@ class _PhotoReportsScreenState extends State<PhotoReportsScreen> {
                 const SizedBox(height: 12),
                 _SourceButton(
                   icon: Icons.photo_library_outlined,
-                  title: 'Выбрать из галереи',
-                  subtitle: 'Добавить уже готовое фото',
+                  title: 'Вибрати из галереи',
+                  subtitle: 'Додати уже готовое фото',
                   onTap: () {
                     Navigator.pop(sheetContext);
                     pickImage(ImageSource.gallery);
@@ -232,7 +232,7 @@ class _PhotoReportsScreenState extends State<PhotoReportsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Новый фотоотчёт',
+                      'Новый фотозвіт',
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w900,
@@ -274,7 +274,7 @@ class _PhotoReportsScreenState extends State<PhotoReportsScreen> {
                                       commentController.clear();
                                     });
                                   },
-                            child: const Text('Отмена'),
+                            child: const Text('Скасувати'),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -306,7 +306,7 @@ class _PhotoReportsScreenState extends State<PhotoReportsScreen> {
     if (widget.objectId == null) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Не выбран объект')));
+      ).showSnackBar(const SnackBar(content: Text('Не выбран об’єкт')));
       return;
     }
 
@@ -362,7 +362,7 @@ class _PhotoReportsScreenState extends State<PhotoReportsScreen> {
 
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('Фотоотчёт сохранён')));
+        ).showSnackBar(const SnackBar(content: Text('Фотозвіт сохранён')));
       } else {
         throw Exception(data['message'] ?? 'Ошибка сохранения фото');
       }
@@ -372,7 +372,7 @@ class _PhotoReportsScreenState extends State<PhotoReportsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Не удалось сохранить фото: ${e.toString().replaceFirst('Exception: ', '')}',
+            'Не вдалося зберегти фото: ${e.toString().replaceFirst('Exception: ', '')}',
           ),
         ),
       );
@@ -410,9 +410,9 @@ class _PhotoReportsScreenState extends State<PhotoReportsScreen> {
 
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('Фотоотчёт удалён')));
+        ).showSnackBar(const SnackBar(content: Text('Фотозвіт удалён')));
       } else {
-        throw Exception(data['message'] ?? 'Ошибка удаления фотоотчёта');
+        throw Exception(data['message'] ?? 'Помилка видалення фотозвіту');
       }
     } catch (e) {
       if (!mounted) return;
@@ -420,7 +420,7 @@ class _PhotoReportsScreenState extends State<PhotoReportsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Не удалось удалить фото: ${e.toString().replaceFirst('Exception: ', '')}',
+            'Не вдалося видалити фото: ${e.toString().replaceFirst('Exception: ', '')}',
           ),
         ),
       );
@@ -468,12 +468,12 @@ class _PhotoReportsScreenState extends State<PhotoReportsScreen> {
             ),
             const SizedBox(height: 18),
             const Text(
-              'Фотоотчётов пока нет',
+              'Фотозвітів поки немає',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 8),
             const Text(
-              'Нажми “Добавить”, сделай фото или выбери его из галереи.',
+              'Натисніть «Додати», зробіть фото або виберіть його з галереї.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 14, color: Colors.black54),
             ),
@@ -485,7 +485,7 @@ class _PhotoReportsScreenState extends State<PhotoReportsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final title = isObjectMode ? 'Фотоотчёты объекта' : 'Фотоотчёты';
+    final title = isObjectMode ? 'Фотозвіти об’єкта' : 'Фотозвіти';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6FA),
@@ -515,7 +515,7 @@ class _PhotoReportsScreenState extends State<PhotoReportsScreen> {
                 ),
               )
             : const Icon(Icons.add_a_photo_outlined),
-        label: Text(isUploading ? 'Сохраняем...' : 'Добавить'),
+        label: Text(isUploading ? 'Зберігаємо...' : 'Додати'),
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -713,7 +713,7 @@ class _PhotoReportCard extends StatelessWidget {
                     children: [
                       const Expanded(
                         child: Text(
-                          'Фотоотчёт',
+                          'Фотозвіт',
                           style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w900,
@@ -754,7 +754,7 @@ class _PhotoReportCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          title.isEmpty ? 'Фото с объекта' : title,
+                          title.isEmpty ? 'Фото с об’єкта' : title,
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w900,
@@ -858,7 +858,7 @@ class _PhotoReportCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    title.isEmpty ? 'Фото с объекта' : title,
+                    title.isEmpty ? 'Фото с об’єкта' : title,
                     style: const TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w800,
@@ -884,3 +884,7 @@ class _PhotoReportCard extends StatelessWidget {
     );
   }
 }
+
+
+
+

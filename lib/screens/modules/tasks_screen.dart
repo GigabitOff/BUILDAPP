@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../services/api_config.dart';
+import '../../services/task_comments_service.dart';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
@@ -19,8 +20,8 @@ class _TasksScreenState extends State<TasksScreen> {
 
   final List<Map<String, dynamic>> tasks = [];
 
-  String selectedObject = 'Все объекты';
-  String selectedStatus = 'Все статусы';
+  String selectedObject = 'Усі об’єкти';
+  String selectedStatus = 'Усі статуси';
   String selectedSort = 'Новые сверху';
 
   @override
@@ -34,7 +35,7 @@ class _TasksScreenState extends State<TasksScreen> {
     final token = prefs.getString('auth_token');
 
     if (token == null || token.isEmpty) {
-      throw Exception('Нет токена авторизации. Выйди и зайди заново.');
+      throw Exception('Немає токена авторизації. Выйди и зайди заново.');
     }
 
     return token;
@@ -62,7 +63,7 @@ class _TasksScreenState extends State<TasksScreen> {
       final data = jsonDecode(response.body);
 
       if (response.statusCode != 200) {
-        throw Exception(data['message'] ?? 'Ошибка получения задач');
+        throw Exception(data['message'] ?? 'Ошибка получения завдань');
       }
 
       if (data['success'] != true) {
@@ -92,6 +93,7 @@ class _TasksScreenState extends State<TasksScreen> {
   Future<void> updateTaskStatus({
     required int taskId,
     required String status,
+    String issueReason = '',
   }) async {
     try {
       final token = await getToken();
@@ -104,14 +106,19 @@ class _TasksScreenState extends State<TasksScreen> {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer $token',
             },
-            body: jsonEncode({'status': status}),
+            body: jsonEncode({
+              'status': statusToServer(status),
+              if (issueReason.trim().isNotEmpty) 'issue_reason': issueReason.trim(),
+              if (issueReason.trim().isNotEmpty) 'overdue_reason': issueReason.trim(),
+              if (issueReason.trim().isNotEmpty) 'problem_description': issueReason.trim(),
+            }),
           )
           .timeout(const Duration(seconds: 10));
 
       final data = jsonDecode(response.body);
 
       if (response.statusCode != 200 || data['success'] != true) {
-        throw Exception(data['message'] ?? 'Ошибка обновления статуса');
+        throw Exception(data['message'] ?? 'Помилка оновлення статусу');
       }
 
       await loadTasks();
@@ -120,31 +127,89 @@ class _TasksScreenState extends State<TasksScreen> {
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Статус задачи обновлён')));
+      ).showSnackBar(const SnackBar(content: Text('Статус завдання обновлён')));
     } catch (e) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Не удалось обновить статус: ${e.toString().replaceFirst('Exception: ', '')}',
+            'Не вдалося оновити статус: ${e.toString().replaceFirst('Exception: ', '')}',
           ),
         ),
       );
     }
   }
 
-  Color getStatusColor(String status) {
-    switch (status) {
-      case 'В работе':
-        return const Color(0xFF1F6FEB);
+  String normalizeStatus(String status) {
+    final value = status.trim();
+
+    switch (value) {
       case 'Планируется':
+      case 'Планується':
+        return 'Планується';
+      case 'В работе':
+      case ' работе':
+      case 'В роботі':
+      case 'роботі':
+        return 'В роботі';
+      case 'Завершена':
+      case 'Завершено':
+      case 'Завершён':
+        return 'Завершено';
+      case 'Просрочена':
+      case 'Прострочена':
+      case 'overdue':
+        return 'Просрочена';
+      case 'Перепоставлена':
+      case 'Перепостановка':
+      case 'Перенесена':
+      case 'rescheduled':
+        return 'Перепоставлена';
+      case 'Не выполнено':
+      case 'Не виконано':
+      case 'Невиконано':
+      case 'failed':
+        return 'Не виконано';
+      default:
+        return value.isEmpty ? 'Планується' : value;
+    }
+  }
+
+  String statusToServer(String status) {
+    switch (normalizeStatus(status)) {
+      case 'Планується':
+        return 'Планируется';
+      case 'В роботі':
+        return 'В работе';
+      case 'Завершено':
+        return 'Завершена';
+      case 'Просрочена':
+        return 'Просрочена';
+      case 'Перепоставлена':
+        return 'Перепоставлена';
+      case 'Не виконано':
+        return 'Не выполнено';
+      default:
+        return status.trim();
+    }
+  }
+
+  Color getStatusColor(String status) {
+    switch (normalizeStatus(status)) {
+      case 'В роботі':
+        return const Color(0xFF1F6FEB);
+      case 'Планується':
         return const Color(0xFF8A63D2);
       case 'Контроль':
         return const Color(0xFFFF9800);
-      case 'Завершена':
+      case 'Завершено':
         return const Color(0xFF22A06B);
       case 'Проблема':
+      case 'Перепоставлена':
+        return const Color(0xFFFF9800);
+      case 'Просрочена':
+      case 'Не виконано':
         return const Color(0xFFD93025);
       default:
         return const Color(0xFF1F6FEB);
@@ -181,6 +246,43 @@ class _TasksScreenState extends State<TasksScreen> {
     return DateTime.tryParse(value);
   }
 
+  bool isCompletedStatus(String status) {
+    return normalizeStatus(status) == 'Завершено';
+  }
+
+  bool isTaskOverdue(Map<String, dynamic> task) {
+    final deadline = parseTaskDate(task['deadline']);
+    if (deadline == null) return false;
+
+    return deadline.isBefore(DateTime.now()) &&
+        !isCompletedStatus('${task['status'] ?? ''}');
+  }
+
+  String taskIssueReason(Map<String, dynamic> task) {
+    return safeText(
+      task['issue_reason'] ??
+          task['overdue_reason'] ??
+          task['problem_description'] ??
+          task['fail_reason'] ??
+          task['delay_reason'],
+      fallback: '',
+    );
+  }
+
+  bool hasTaskIssueReason(Map<String, dynamic> task) {
+    return taskIssueReason(task).trim().isNotEmpty;
+  }
+
+  bool taskNeedsIssueReason(Map<String, dynamic> task, String status) {
+    final normalized = normalizeStatus(status);
+
+    return normalized == 'Проблема' ||
+        normalized == 'Просрочена' ||
+        normalized == 'Перепоставлена' ||
+        normalized == 'Не виконано' ||
+        (isTaskOverdue(task) && normalized != 'Завершено');
+  }
+
   String safeText(dynamic value, {String fallback = 'Не указано'}) {
     final text = '${value ?? ''}'.trim();
 
@@ -192,10 +294,10 @@ class _TasksScreenState extends State<TasksScreen> {
   }
 
   List<String> get objectFilterItems {
-    final values = <String>{'Все объекты'};
+    final values = <String>{'Усі об’єкти'};
 
     for (final task in tasks) {
-      final objectName = safeText(task['object_name'], fallback: 'Без объекта');
+      final objectName = safeText(task['object_name'], fallback: 'Без об’єкта');
       values.add(objectName);
     }
 
@@ -203,10 +305,10 @@ class _TasksScreenState extends State<TasksScreen> {
   }
 
   List<String> get statusFilterItems {
-    final values = <String>{'Все статусы'};
+    final values = <String>{'Усі статуси'};
 
     for (final task in tasks) {
-      final status = safeText(task['status'], fallback: 'Планируется');
+      final status = normalizeStatus(safeText(task['status'], fallback: 'Планується'));
       values.add(status);
     }
 
@@ -216,19 +318,19 @@ class _TasksScreenState extends State<TasksScreen> {
   List<Map<String, dynamic>> get filteredTasks {
     var result = List<Map<String, dynamic>>.from(tasks);
 
-    if (selectedObject != 'Все объекты') {
+    if (selectedObject != 'Усі об’єкти') {
       result = result.where((task) {
         final objectName = safeText(
           task['object_name'],
-          fallback: 'Без объекта',
+          fallback: 'Без об’єкта',
         );
         return objectName == selectedObject;
       }).toList();
     }
 
-    if (selectedStatus != 'Все статусы') {
+    if (selectedStatus != 'Усі статуси') {
       result = result.where((task) {
-        final status = safeText(task['status'], fallback: 'Планируется');
+        final status = normalizeStatus(safeText(task['status'], fallback: 'Планується'));
         return status == selectedStatus;
       }).toList();
     }
@@ -260,15 +362,15 @@ class _TasksScreenState extends State<TasksScreen> {
   }
 
   bool get isFilterActive {
-    return selectedObject != 'Все объекты' ||
-        selectedStatus != 'Все статусы' ||
+    return selectedObject != 'Усі об’єкти' ||
+        selectedStatus != 'Усі статуси' ||
         selectedSort != 'Новые сверху';
   }
 
   void resetFilters() {
     setState(() {
-      selectedObject = 'Все объекты';
-      selectedStatus = 'Все статусы';
+      selectedObject = 'Усі об’єкти';
+      selectedStatus = 'Усі статуси';
       selectedSort = 'Новые сверху';
     });
   }
@@ -333,7 +435,7 @@ class _TasksScreenState extends State<TasksScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Сортировка задач',
+                                  'Сортировка завдань',
                                   style: TextStyle(
                                     fontSize: 22,
                                     fontWeight: FontWeight.w900,
@@ -342,7 +444,7 @@ class _TasksScreenState extends State<TasksScreen> {
                                 ),
                                 SizedBox(height: 3),
                                 Text(
-                                  'Выбери объект, статус и порядок вывода',
+                                  'Оберіть об’єкт, статус і порядок виводу',
                                   style: TextStyle(
                                     fontSize: 13,
                                     color: Colors.black54,
@@ -358,7 +460,7 @@ class _TasksScreenState extends State<TasksScreen> {
                       const SizedBox(height: 22),
 
                       _FilterDropdown(
-                        title: 'Объект строительства',
+                        title: 'Об’єкт будівництва',
                         value: tempObject,
                         items: objectFilterItems,
                         onChanged: (value) {
@@ -373,7 +475,7 @@ class _TasksScreenState extends State<TasksScreen> {
                       const SizedBox(height: 14),
 
                       _FilterDropdown(
-                        title: 'Статус задачи',
+                        title: 'Статус завдання',
                         value: tempStatus,
                         items: statusFilterItems,
                         onChanged: (value) {
@@ -445,8 +547,8 @@ class _TasksScreenState extends State<TasksScreen> {
                         child: TextButton.icon(
                           onPressed: () {
                             setState(() {
-                              selectedObject = 'Все объекты';
-                              selectedStatus = 'Все статусы';
+                              selectedObject = 'Усі об’єкти';
+                              selectedStatus = 'Усі статуси';
                               selectedSort = 'Новые сверху';
                             });
 
@@ -479,15 +581,24 @@ class _TasksScreenState extends State<TasksScreen> {
     final String title = safeText(task['title'], fallback: 'Без названия');
     final String description = safeText(
       task['description'],
-      fallback: 'Описание не указано',
+      fallback: 'Опис не указано',
     );
-    final String status = safeText(task['status'], fallback: 'Планируется');
+    final String status = normalizeStatus(safeText(task['status'], fallback: 'Планується'));
+    final String issueReason = taskIssueReason(task);
     final String objectName = safeText(task['object_name']);
     final String objectAddress = safeText(task['object_address']);
     final String executorName = safeText(task['executor_name']);
     final String createdByName = safeText(task['created_by_name']);
     final String createdAt = formatDate(task['created_at']);
     final String deadline = formatDate(task['deadline']);
+    final int commentsCount = int.tryParse(
+          '${task['comments_count'] ?? task['comment_count'] ?? task['commentsCount'] ?? 0}',
+        ) ??
+        0;
+    final int newCommentsCount = int.tryParse(
+          '${task['new_comments_count'] ?? task['unread_comments_count'] ?? task['newCommentsCount'] ?? 0}',
+        ) ??
+        0;
 
     final Color statusColor = getStatusColor(status);
 
@@ -497,6 +608,12 @@ class _TasksScreenState extends State<TasksScreen> {
       backgroundColor: Colors.transparent,
       builder: (sheetContext) {
         String selectedStatus = status;
+        final issueController = TextEditingController(text: issueReason);
+        String sheetError = '';
+
+        bool needsIssueReason(String value) {
+          return taskNeedsIssueReason(task, value);
+        }
 
         return StatefulBuilder(
           builder: (context, setSheetState) {
@@ -559,39 +676,58 @@ class _TasksScreenState extends State<TasksScreen> {
 
                             const SizedBox(height: 14),
 
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 7,
-                              ),
-                              decoration: BoxDecoration(
-                                color: statusColor.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                              child: Text(
-                                status,
-                                style: TextStyle(
-                                  color: statusColor,
-                                  fontWeight: FontWeight.w900,
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 7,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: statusColor.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: Text(
+                                    status,
+                                    style: TextStyle(
+                                      color: statusColor,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                if (isTaskOverdue(task)) const _StatusBadge(text: 'Просрочено'),
+                                if (isTaskOverdue(task) && !hasTaskIssueReason(task))
+                                  const _StatusBadge(text: 'Не виконано'),
+                                _CommentBadge(
+                                  totalCount: commentsCount,
+                                  newCount: newCommentsCount,
+                                ),
+                              ],
                             ),
 
                             const SizedBox(height: 16),
 
+                            if (issueReason.isNotEmpty)
+                              _InfoRow(
+                                icon: Icons.report_problem_outlined,
+                                label: 'Причина',
+                                value: issueReason,
+                              ),
                             _InfoRow(
-                              icon: Icons.apartment_outlined,
-                              label: 'Объект',
+                              icon: Icons.circle_outlined,
+                              label: 'Об’єкт',
                               value: objectName,
                             ),
                             _InfoRow(
                               icon: Icons.location_on_outlined,
-                              label: 'Адрес',
+                              label: 'Адреса',
                               value: objectAddress,
                             ),
                             _InfoRow(
                               icon: Icons.person_outline,
-                              label: 'Исполнитель',
+                              label: 'Виконавець',
                               value: executorName,
                             ),
                             _InfoRow(
@@ -615,20 +751,28 @@ class _TasksScreenState extends State<TasksScreen> {
 
                       const SizedBox(height: 16),
 
+                      _TaskCommentsBlock(
+                        taskId: taskId,
+                        initialCount: commentsCount,
+                        onCommentAdded: loadTasks,
+                      ),
+
+                      const SizedBox(height: 16),
+
                       DropdownButtonFormField<String>(
                         initialValue: selectedStatus,
                         decoration: const InputDecoration(
-                          labelText: 'Статус задачи',
+                          labelText: 'Статус завдання',
                           border: OutlineInputBorder(),
                         ),
                         items: const [
                           DropdownMenuItem(
-                            value: 'Планируется',
-                            child: Text('Планируется'),
+                            value: 'Планується',
+                            child: Text('Планується'),
                           ),
                           DropdownMenuItem(
-                            value: 'В работе',
-                            child: Text('В работе'),
+                            value: 'В роботі',
+                            child: Text('В роботі'),
                           ),
                           DropdownMenuItem(
                             value: 'Контроль',
@@ -639,8 +783,20 @@ class _TasksScreenState extends State<TasksScreen> {
                             child: Text('Проблема'),
                           ),
                           DropdownMenuItem(
-                            value: 'Завершена',
-                            child: Text('Завершена'),
+                            value: 'Перепоставлена',
+                            child: Text('Перепоставлена'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Просрочена',
+                            child: Text('Просрочена'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Не виконано',
+                            child: Text('Не виконано'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'Завершено',
+                            child: Text('Завершено'),
                           ),
                         ],
                         onChanged: (value) {
@@ -648,9 +804,43 @@ class _TasksScreenState extends State<TasksScreen> {
 
                           setSheetState(() {
                             selectedStatus = value;
+                            sheetError = '';
                           });
                         },
                       ),
+
+                      if (needsIssueReason(selectedStatus)) ...[
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: issueController,
+                          maxLines: 4,
+                          decoration: const InputDecoration(
+                            labelText: 'Причина просрочки / невиконання',
+                            hintText: 'Опиши, чому задача просрочена або не виконана',
+                            border: OutlineInputBorder(),
+                          ),
+                          onChanged: (_) {
+                            if (sheetError.isNotEmpty) {
+                              setSheetState(() {
+                                sheetError = '';
+                              });
+                            }
+                          },
+                        ),
+                      ],
+                      if (sheetError.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            sheetError,
+                            style: const TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
 
                       const SizedBox(height: 16),
 
@@ -668,11 +858,21 @@ class _TasksScreenState extends State<TasksScreen> {
                               onPressed: taskId == 0
                                   ? null
                                   : () async {
+                                      final reason = issueController.text.trim();
+
+                                      if (needsIssueReason(selectedStatus) && reason.isEmpty) {
+                                        setSheetState(() {
+                                          sheetError = 'Опиши причину просрочки або невиконання';
+                                        });
+                                        return;
+                                      }
+
                                       Navigator.pop(sheetContext);
 
                                       await updateTaskStatus(
                                         taskId: taskId,
                                         status: selectedStatus,
+                                        issueReason: needsIssueReason(selectedStatus) ? reason : '',
                                       );
                                     },
                               icon: const Icon(Icons.check),
@@ -715,7 +915,7 @@ class _TasksScreenState extends State<TasksScreen> {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                'Фильтр: $selectedObject · $selectedStatus · $selectedSort',
+                'Фильтр: $selectedObject В· $selectedStatus В· $selectedSort',
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
@@ -759,12 +959,12 @@ class _TasksScreenState extends State<TasksScreen> {
             ),
             const SizedBox(height: 18),
             const Text(
-              'Задач пока нет',
+              'Завдань поки немає',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 8),
             const Text(
-              'Когда задачи появятся на объектах, они будут здесь одним списком.',
+              'Коли завдання з’являться на об’єктах, вони будуть тут одним списком.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 14, color: Colors.black54),
             ),
@@ -796,12 +996,12 @@ class _TasksScreenState extends State<TasksScreen> {
             ),
             const SizedBox(height: 18),
             const Text(
-              'По фильтру задач нет',
+              'По фильтру завдань нет',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 8),
             const Text(
-              'Измени объект, статус или сбрось фильтр.',
+              'Зміни об’єкт, статус або скинь фільтр.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 14, color: Colors.black54),
             ),
@@ -831,7 +1031,7 @@ class _TasksScreenState extends State<TasksScreen> {
             const Icon(Icons.error_outline, color: Color(0xFFD93025), size: 46),
             const SizedBox(height: 14),
             const Text(
-              'Не удалось загрузить задачи',
+              'Не вдалося завантажити завдання',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 8),
@@ -892,21 +1092,33 @@ class _TasksScreenState extends State<TasksScreen> {
                 final executorName = safeText(task['executor_name']);
                 final status = safeText(
                   task['status'],
-                  fallback: 'Планируется',
+                  fallback: 'Планується',
                 );
                 final createdAt = formatDate(task['created_at']);
                 final deadline = formatDate(task['deadline']);
                 final statusColor = getStatusColor(status);
+                final commentsCount = int.tryParse(
+                      '${task['comments_count'] ?? task['comment_count'] ?? task['commentsCount'] ?? 0}',
+                    ) ??
+                    0;
+                final newCommentsCount = int.tryParse(
+                      '${task['new_comments_count'] ?? task['unread_comments_count'] ?? task['newCommentsCount'] ?? 0}',
+                    ) ??
+                    0;
 
                 return _TaskCard(
                   title: title,
                   objectName: objectName,
                   objectAddress: objectAddress,
                   executorName: executorName,
-                  status: status,
+                  status: normalizeStatus(status),
                   createdAt: createdAt,
                   deadline: deadline,
                   statusColor: statusColor,
+                  isOverdue: isTaskOverdue(task),
+                  hasIssueReason: hasTaskIssueReason(task),
+                  commentsCount: commentsCount,
+                  newCommentsCount: newCommentsCount,
                   onTap: () => showTaskDetails(task),
                 );
               },
@@ -925,7 +1137,7 @@ class _TasksScreenState extends State<TasksScreen> {
       backgroundColor: const Color(0xFFF4F6FA),
       appBar: AppBar(
         title: const Text(
-          'Задачи',
+          'Завдання',
           style: TextStyle(fontWeight: FontWeight.w800),
         ),
         backgroundColor: const Color(0xFFF4F6FA),
@@ -961,6 +1173,10 @@ class _TaskCard extends StatelessWidget {
   final String createdAt;
   final String deadline;
   final Color statusColor;
+  final bool isOverdue;
+  final bool hasIssueReason;
+  final int commentsCount;
+  final int newCommentsCount;
   final VoidCallback onTap;
 
   const _TaskCard({
@@ -972,6 +1188,10 @@ class _TaskCard extends StatelessWidget {
     required this.createdAt,
     required this.deadline,
     required this.statusColor,
+    required this.isOverdue,
+    required this.hasIssueReason,
+    required this.commentsCount,
+    this.newCommentsCount = 0,
     required this.onTap,
   });
 
@@ -1029,7 +1249,7 @@ class _TaskCard extends StatelessWidget {
                   const SizedBox(height: 6),
 
                   Text(
-                    'Объект: $objectName',
+                    'Об’єкт: $objectName',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -1097,6 +1317,12 @@ class _TaskCard extends StatelessWidget {
                           ),
                         ),
                       ),
+                      if (isOverdue) const _StatusBadge(text: 'Просрочено'),
+                      if (isOverdue && !hasIssueReason) const _StatusBadge(text: 'Не виконано'),
+                      _CommentBadge(
+                        totalCount: commentsCount,
+                        newCount: newCommentsCount,
+                      ),
                       _SmallBadge(
                         icon: Icons.calendar_month_outlined,
                         text: createdAt,
@@ -1114,6 +1340,394 @@ class _TaskCard extends StatelessWidget {
             const Icon(Icons.chevron_right, color: Colors.black38),
           ],
         ),
+      ),
+    );
+  }
+}
+
+
+class _CommentBadge extends StatelessWidget {
+  final int totalCount;
+  final int newCount;
+
+  const _CommentBadge({
+    required this.totalCount,
+    this.newCount = 0,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasNew = newCount > 0;
+    final mainColor = hasNew ? const Color(0xFFD93025) : const Color(0xFF1F6FEB);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: mainColor.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.chat_bubble_outline_rounded,
+            size: 13,
+            color: mainColor,
+          ),
+          const SizedBox(width: 5),
+          Text(
+            'Всього: $totalCount',
+            style: TextStyle(
+              color: mainColor,
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(width: 7),
+          Text(
+            'Нові: $newCount',
+            style: TextStyle(
+              color: mainColor,
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TaskCommentsBlock extends StatefulWidget {
+  final int taskId;
+  final int initialCount;
+  final Future<void> Function()? onCommentAdded;
+
+  const _TaskCommentsBlock({
+    required this.taskId,
+    required this.initialCount,
+    this.onCommentAdded,
+  });
+
+  @override
+  State<_TaskCommentsBlock> createState() => _TaskCommentsBlockState();
+}
+
+class _TaskCommentsBlockState extends State<_TaskCommentsBlock> {
+  final TextEditingController _controller = TextEditingController();
+  final List<TaskComment> _comments = [];
+
+  bool _expanded = false;
+  bool _isLoading = false;
+  bool _isSending = false;
+  String _error = '';
+
+  int get _visibleCount => _comments.isNotEmpty ? _comments.length : widget.initialCount;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadComments() async {
+    if (widget.taskId <= 0) return;
+
+    setState(() {
+      _isLoading = true;
+      _error = '';
+    });
+
+    try {
+      final result = await TaskCommentsService.getTaskComments(widget.taskId);
+      if (!mounted) return;
+
+      setState(() {
+        _comments
+          ..clear()
+          ..addAll(result);
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _error = e.toString().replaceFirst('Exception: ', '');
+      });
+    } finally {
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _sendComment() async {
+    final text = _controller.text.trim();
+    if (text.isEmpty || widget.taskId <= 0) return;
+
+    setState(() {
+      _isSending = true;
+      _error = '';
+    });
+
+    try {
+      await TaskCommentsService.addTaskComment(
+        taskId: widget.taskId,
+        comment: text,
+      );
+      _controller.clear();
+      await _loadComments();
+      await widget.onCommentAdded?.call();
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _error = e.toString().replaceFirst('Exception: ', '');
+      });
+    } finally {
+      if (!mounted) return;
+
+      setState(() {
+        _isSending = false;
+      });
+    }
+  }
+
+  String _formatDate(String rawDate) {
+    if (rawDate.isEmpty || rawDate == 'null') return '';
+
+    try {
+      final date = DateTime.parse(rawDate).toLocal();
+      final day = date.day.toString().padLeft(2, '0');
+      final month = date.month.toString().padLeft(2, '0');
+      final year = date.year.toString();
+      final hour = date.hour.toString().padLeft(2, '0');
+      final minute = date.minute.toString().padLeft(2, '0');
+      return '$day.$month.$year $hour:$minute';
+    } catch (_) {
+      return rawDate;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        children: [
+          InkWell(
+            borderRadius: BorderRadius.circular(18),
+            onTap: () async {
+              final shouldLoad = !_expanded && _comments.isEmpty;
+
+              setState(() {
+                _expanded = !_expanded;
+              });
+
+              if (shouldLoad) {
+                await _loadComments();
+              }
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1F6FEB).withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Icon(
+                      Icons.chat_bubble_outline,
+                      color: Color(0xFF1F6FEB),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Коментарі по задачі',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _visibleCount == 0
+                              ? 'Переписка поки порожня'
+                              : '$_visibleCount повідомлень',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Colors.black54,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    _expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                    color: Colors.black45,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_expanded) ...[
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (_isLoading)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(14),
+                        child: CircularProgressIndicator(),
+                      ),
+                    )
+                  else if (_comments.isEmpty)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF4F6FA),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Text(
+                        'Коментарів ще немає. Напиши перший коментар, щоб постановщик і виконавець бачили переписку.',
+                        style: TextStyle(color: Colors.black54, height: 1.35),
+                      ),
+                    )
+                  else
+                    ..._comments.map((comment) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF4F6FA),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      comment.userName.isEmpty
+                                          ? 'Користувач'
+                                          : comment.userName,
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    _formatDate(comment.createdAt),
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.black38,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                comment.comment,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.black87,
+                                  height: 1.35,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
+                  if (_error.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      _error,
+                      style: const TextStyle(
+                        color: Color(0xFFD93025),
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 10),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _controller,
+                          minLines: 1,
+                          maxLines: 4,
+                          decoration: InputDecoration(
+                            hintText: 'Написати коментар...',
+                            filled: true,
+                            fillColor: const Color(0xFFF4F6FA),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        width: 48,
+                        height: 48,
+                        child: ElevatedButton(
+                          onPressed: _isSending ? null : _sendComment,
+                          style: ElevatedButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            backgroundColor: const Color(0xFF1F6FEB),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          child: _isSending
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.send_rounded),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -1175,6 +1789,32 @@ class _FilterDropdown extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+
+class _StatusBadge extends StatelessWidget {
+  final String text;
+
+  const _StatusBadge({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFD93025).withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: Color(0xFFD93025),
+          fontSize: 12,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
     );
   }
 }
@@ -1257,3 +1897,7 @@ class _InfoRow extends StatelessWidget {
     );
   }
 }
+
+
+
+

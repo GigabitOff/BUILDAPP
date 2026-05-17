@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -14,7 +14,7 @@ class InvitesService {
     final token = prefs.getString('auth_token');
 
     if (token == null || token.isEmpty) {
-      return {'success': false, 'message': 'Нет токена авторизации'};
+      return {'success': false, 'message': 'Немає токена авторизації'};
     }
 
     final response = await http.post(
@@ -45,7 +45,7 @@ class InvitesService {
     final token = prefs.getString('auth_token');
 
     if (token == null || token.isEmpty) {
-      return {'success': false, 'message': 'Нет токена авторизации'};
+      return {'success': false, 'message': 'Немає токена авторизації'};
     }
 
     final response = await http.post(
@@ -59,3 +59,7 @@ class InvitesService {
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 }
+
+
+
+

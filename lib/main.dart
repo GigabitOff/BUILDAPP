@@ -1,20 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'screens/home_screen.dart';
 import 'screens/phone_login_screen.dart';
+import 'screens/pin_code_screen.dart';
+import 'services/push_notifications_service.dart';
 
-void main() {
-  runApp(const BuildApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await PushNotificationsService.initialize();
+  runApp(const EVENTHESAPP());
 }
 
-class BuildApp extends StatelessWidget {
-  const BuildApp({super.key});
+class EVENTHESAPP extends StatelessWidget {
+  const EVENTHESAPP({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'BUILDAPP',
+      title: 'EVENTHESAPP',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
@@ -35,20 +38,33 @@ class AppStartScreen extends StatefulWidget {
 
 class _AppStartScreenState extends State<AppStartScreen> {
   bool isLoading = true;
-  bool hasToken = false;
+  String? savedToken;
+  String? savedPhone;
 
   @override
   void initState() {
     super.initState();
-    checkToken();
+    checkAuthState();
   }
 
-  Future<void> checkToken() async {
+  Future<void> checkAuthState() async {
     final prefs = await SharedPreferences.getInstance();
+
     final token = prefs.getString('auth_token');
+    final phone = prefs.getString('auth_phone');
+
+    final authorized =
+        token != null && token.isNotEmpty && phone != null && phone.isNotEmpty;
+
+    if (authorized) {
+      await PushNotificationsService.registerCurrentDevice();
+    }
+
+    if (!mounted) return;
 
     setState(() {
-      hasToken = token != null && token.isNotEmpty;
+      savedToken = token;
+      savedPhone = phone;
       isLoading = false;
     });
   }
@@ -56,11 +72,16 @@ class _AppStartScreenState extends State<AppStartScreen> {
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
     }
 
-    if (hasToken) {
-      return const HomeScreen();
+    final hasToken = savedToken != null && savedToken!.isNotEmpty;
+    final hasPhone = savedPhone != null && savedPhone!.isNotEmpty;
+
+    if (hasToken && hasPhone) {
+      return PinCodeScreen(phone: savedPhone!);
     }
 
     return const PhoneLoginScreen();

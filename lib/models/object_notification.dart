@@ -1,4 +1,4 @@
-class ObjectNotification {
+﻿class ObjectNotification {
   final int id;
   final int constructionObjectId;
   final String? objectName;
@@ -44,3 +44,7 @@ class ObjectNotification {
     );
   }
 }
+
+
+
+

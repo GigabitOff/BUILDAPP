@@ -76,7 +76,7 @@ class _ObjectMaterialsScreenState extends State<ObjectMaterialsScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Отмена'),
+              child: const Text('Скасувати'),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(dialogContext, true),
@@ -108,7 +108,7 @@ class _ObjectMaterialsScreenState extends State<ObjectMaterialsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Не удалось удалить: ${e.toString().replaceFirst('Exception: ', '')}',
+            'Не вдалося видалити: ${e.toString().replaceFirst('Exception: ', '')}',
           ),
         ),
       );
@@ -221,7 +221,7 @@ class _ObjectMaterialsScreenState extends State<ObjectMaterialsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          isEdit ? 'Редактировать материал' : 'Добавить материал',
+                          isEdit ? 'Редактировать материал' : 'Додати материал',
                           style: const TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w900,
@@ -242,7 +242,7 @@ class _ObjectMaterialsScreenState extends State<ObjectMaterialsScreen> {
                           controller: unitController,
                           decoration: const InputDecoration(
                             labelText: 'Ед. изм.',
-                            hintText: 'меш, шт, м², кг',
+                            hintText: 'меш, шт, мВІ, кг',
                             filled: true,
                             fillColor: Colors.white,
                             border: OutlineInputBorder(),
@@ -302,10 +302,10 @@ class _ObjectMaterialsScreenState extends State<ObjectMaterialsScreen> {
                                 : const Icon(Icons.save_outlined),
                             label: Text(
                               isSaving
-                                  ? 'Сохраняем...'
+                                  ? 'Зберігаємо...'
                                   : isEdit
                                       ? 'Сохранить'
-                                      : 'Добавить',
+                                      : 'Додати',
                             ),
                           ),
                         ),
@@ -481,7 +481,7 @@ class _ObjectMaterialsScreenState extends State<ObjectMaterialsScreen> {
                 ),
                 const SizedBox(height: 6),
                 const Text(
-                  'Материалы объекта',
+                  'Материалы об’єкта',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 26,
@@ -490,7 +490,7 @@ class _ObjectMaterialsScreenState extends State<ObjectMaterialsScreen> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Итого: ${money(totalSum)} грн',
+                  'Разом: ${money(totalSum)} грн',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
@@ -510,7 +510,7 @@ class _ObjectMaterialsScreenState extends State<ObjectMaterialsScreen> {
               ),
               child: Text(
                 canEdit
-                    ? 'Материалов пока нет. Нажми “Добавить”, чтобы создать первый материал.'
+                    ? 'Матеріалів поки немає. Натисни “Додати”, щоб створити перший матеріал.'
                     : 'Материалов пока нет.',
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Colors.black54),
@@ -547,9 +547,13 @@ class _ObjectMaterialsScreenState extends State<ObjectMaterialsScreen> {
           ? FloatingActionButton.extended(
               onPressed: () => showMaterialDialog(),
               icon: const Icon(Icons.add),
-              label: const Text('Добавить'),
+              label: const Text('Додати'),
             )
           : null,
     );
   }
 }
+
+
+
+

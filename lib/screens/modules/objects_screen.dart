@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/construction_object.dart';
@@ -18,14 +18,21 @@ class _ObjectsScreenState extends State<ObjectsScreen> {
   final ObjectsService objectsService = ObjectsService();
 
   final List<ConstructionObject> objects = [];
+  final Map<int, int> activeTasksByObject = {};
+  final Map<int, ObjectActiveTaskCommentStats> taskCommentStatsByObject = {};
 
   bool isLoading = true;
   bool isDeleting = false;
   String errorText = '';
   String searchText = '';
   String userType = '';
+  bool isHeaderExpanded = false;
 
   bool get isAdmin => userType == 'admin';
+
+  int get totalTasksInWork {
+    return activeTasksByObject.values.fold<int>(0, (sum, count) => sum + count);
+  }
 
   @override
   void initState() {
@@ -57,12 +64,52 @@ class _ObjectsScreenState extends State<ObjectsScreen> {
     try {
       final loadedObjects = await objectsService.getObjects();
 
+      final taskCountEntries = await Future.wait(
+        loadedObjects.map((object) async {
+          try {
+            final count = await objectsService.getObjectActiveTasksCount(
+              object.id,
+            );
+            return MapEntry(object.id, count);
+          } catch (_) {
+            return MapEntry(object.id, 0);
+          }
+        }),
+      );
+
+      final commentStatsEntries = await Future.wait(
+        loadedObjects.map((object) async {
+          try {
+            final stats = await objectsService.getObjectActiveTaskCommentStats(
+              object.id,
+            );
+            return MapEntry(object.id, stats);
+          } catch (_) {
+            return MapEntry(
+              object.id,
+              const ObjectActiveTaskCommentStats(
+                totalComments: 0,
+                newComments: 0,
+              ),
+            );
+          }
+        }),
+      );
+
       if (!mounted) return;
 
       setState(() {
         objects
           ..clear()
           ..addAll(loadedObjects);
+
+        activeTasksByObject
+          ..clear()
+          ..addEntries(taskCountEntries);
+
+        taskCommentStatsByObject
+          ..clear()
+          ..addEntries(commentStatsEntries);
 
         isLoading = false;
       });
@@ -95,13 +142,13 @@ class _ObjectsScreenState extends State<ObjectsScreen> {
 
   Color getStatusColor(String status) {
     switch (status) {
-      case 'В работе':
+      case ' работе':
         return const Color(0xFF1F6FEB);
-      case 'Планируется':
+      case 'Планується':
         return const Color(0xFF8A63D2);
       case 'Контроль':
         return const Color(0xFFFF9800);
-      case 'Завершён':
+      case 'Завершено':
         return const Color(0xFF22A06B);
       case 'Проблема':
         return const Color(0xFFD93025);
@@ -137,14 +184,14 @@ class _ObjectsScreenState extends State<ObjectsScreen> {
 
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('Объект добавлен')));
+    ).showSnackBar(const SnackBar(content: Text('Об’єкт додано')));
   }
 
   Future<void> deleteObject(ConstructionObject object) async {
     if (!isAdmin) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Удалять объекты может только администратор'),
+          content: Text('Видаляти об’єкти може тільки адміністратор'),
         ),
       );
       return;
@@ -164,26 +211,26 @@ class _ObjectsScreenState extends State<ObjectsScreen> {
               SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Удалить объект?',
+                  'Видалити об’єкт?',
                   style: TextStyle(fontWeight: FontWeight.w900),
                 ),
               ),
             ],
           ),
           content: Text(
-            'Объект "${object.name}" будет скрыт из приложения.\n\n'
-            'Задачи, материалы, фотоотчёты, история и уведомления по объекту останутся в базе для контроля и возможного восстановления.\n\n'
+            'Об’єкт "${object.name}" буде прихований із застосунку.\n\n'
+            'Завдання, материалы, фотоотчёты, история и уведомления по об’єкту останутся в базе для контроля и возможного восстановления.\n\n'
             'Полное удаление связанных данных не выполняется.',
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Отмена'),
+              child: const Text('Скасувати'),
             ),
             ElevatedButton.icon(
               onPressed: () => Navigator.pop(dialogContext, true),
               icon: const Icon(Icons.delete_outline),
-              label: const Text('Удалить объект'),
+              label: const Text('Видалити об’єкт'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.redAccent,
                 foregroundColor: Colors.white,
@@ -211,7 +258,7 @@ class _ObjectsScreenState extends State<ObjectsScreen> {
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Объект удалён')));
+      ).showSnackBar(const SnackBar(content: Text('Об’єкт видалено')));
     } catch (e) {
       if (!mounted) return;
 
@@ -241,7 +288,7 @@ class _ObjectsScreenState extends State<ObjectsScreen> {
       backgroundColor: const Color(0xFFF4F6FA),
       appBar: AppBar(
         title: const Text(
-          'Объекты строительства',
+          'Об’єкти',
           style: TextStyle(fontWeight: FontWeight.w800),
         ),
         backgroundColor: const Color(0xFFF4F6FA),
@@ -261,7 +308,7 @@ class _ObjectsScreenState extends State<ObjectsScreen> {
               backgroundColor: const Color(0xFF1F6FEB),
               foregroundColor: Colors.white,
               icon: const Icon(Icons.add),
-              label: const Text('Добавить'),
+              label: const Text('Додати'),
             )
           : null,
 
@@ -270,38 +317,100 @@ class _ObjectsScreenState extends State<ObjectsScreen> {
         child: ListView(
           padding: const EdgeInsets.all(22),
           children: [
-            Container(
-              padding: const EdgeInsets.all(22),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF1F6FEB), Color(0xFF4C8DFF)],
+            InkWell(
+              onTap: () {
+                setState(() {
+                  isHeaderExpanded = !isHeaderExpanded;
+                });
+              },
+              borderRadius: BorderRadius.circular(26),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.all(22),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF1F6FEB), Color(0xFF4C8DFF)],
+                  ),
+                  borderRadius: BorderRadius.circular(26),
                 ),
-                borderRadius: BorderRadius.circular(26),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    isAdmin ? 'Все рабочие объекты' : 'Мои рабочие объекты',
-                    style: const TextStyle(color: Colors.white70, fontSize: 15),
-                  ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'Контроль строительства',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 26,
-                      fontWeight: FontWeight.w900,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                isAdmin
+                                    ? 'Усі робочі об’єкти'
+                                    : 'Мої робочі об’єкти',
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 15,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              const Text(
+                                'Контроль об’єктів',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(17),
+                          ),
+                          child: Icon(
+                            isHeaderExpanded
+                                ? Icons.keyboard_arrow_up_rounded
+                                : Icons.keyboard_arrow_down_rounded,
+                            color: Colors.white,
+                            size: 28,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    isAdmin
-                        ? 'Админ видит объекты своей компании и может создавать новые'
-                        : 'Здесь только объекты, назначенные тебе',
-                    style: const TextStyle(color: Colors.white70, fontSize: 15),
-                  ),
-                ],
+                    if (isHeaderExpanded) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        isAdmin
+                            ? 'Адмін бачить об’єкти своєї компанії та може створювати нові'
+                            : 'Тут лише об’єкти, призначені вам',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          _HeaderStatCard(
+                            title: 'Усього',
+                            value: objects.length.toString(),
+                            icon: Icons.circle_outlined,
+                          ),
+                          const SizedBox(width: 12),
+                          _HeaderStatCard(
+                            title: 'Задач',
+                            value: totalTasksInWork.toString(),
+                            icon: Icons.work_outline,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ),
 
@@ -315,7 +424,7 @@ class _ObjectsScreenState extends State<ObjectsScreen> {
                 });
               },
               decoration: InputDecoration(
-                hintText: 'Поиск объекта...',
+                hintText: 'Пошук об’єкта...',
                 prefixIcon: const Icon(Icons.search),
                 filled: true,
                 fillColor: Colors.white,
@@ -332,26 +441,6 @@ class _ObjectsScreenState extends State<ObjectsScreen> {
 
             const SizedBox(height: 18),
 
-            Row(
-              children: [
-                _SmallStatCard(
-                  title: 'Всего',
-                  value: objects.length.toString(),
-                  icon: Icons.apartment_outlined,
-                ),
-                const SizedBox(width: 12),
-                _SmallStatCard(
-                  title: 'В работе',
-                  value: objects
-                      .where((e) => e.status == 'В работе')
-                      .length
-                      .toString(),
-                  icon: Icons.work_outline,
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 18),
 
             if (isDeleting)
               Container(
@@ -371,7 +460,7 @@ class _ObjectsScreenState extends State<ObjectsScreen> {
                     SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'Удаляем объект...',
+                        'Видаляємо об’єкт...',
                         style: TextStyle(fontWeight: FontWeight.w800),
                       ),
                     ),
@@ -393,6 +482,12 @@ class _ObjectsScreenState extends State<ObjectsScreen> {
                     object: item,
                     statusColor: getStatusColor(item.status),
                     isAdmin: isAdmin,
+                    activeTasksCount: activeTasksByObject[item.id] ?? 0,
+                    commentStats: taskCommentStatsByObject[item.id] ??
+                        const ObjectActiveTaskCommentStats(
+                          totalComments: 0,
+                          newComments: 0,
+                        ),
                     onTap: () => openObject(item),
                     onDelete: () => deleteObject(item),
                   ),
@@ -407,12 +502,12 @@ class _ObjectsScreenState extends State<ObjectsScreen> {
   }
 }
 
-class _SmallStatCard extends StatelessWidget {
+class _HeaderStatCard extends StatelessWidget {
   final String title;
   final String value;
   final IconData icon;
 
-  const _SmallStatCard({
+  const _HeaderStatCard({
     required this.title,
     required this.value,
     required this.icon,
@@ -422,39 +517,44 @@ class _SmallStatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        height: 92,
-        padding: const EdgeInsets.all(16),
+        height: 76,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(22),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 18,
-              offset: const Offset(0, 10),
-            ),
-          ],
+          color: Colors.white.withValues(alpha: 0.16),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
         ),
         child: Row(
           children: [
-            Icon(icon, color: const Color(0xFF1F6FEB), size: 28),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
+            Icon(icon, color: Colors.white, size: 24),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
-                ),
-                Text(
-                  title,
-                  style: const TextStyle(fontSize: 13, color: Colors.black54),
-                ),
-              ],
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.white70,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -467,6 +567,8 @@ class _ObjectCard extends StatelessWidget {
   final ConstructionObject object;
   final Color statusColor;
   final bool isAdmin;
+  final int activeTasksCount;
+  final ObjectActiveTaskCommentStats commentStats;
   final VoidCallback onTap;
   final VoidCallback onDelete;
 
@@ -474,19 +576,20 @@ class _ObjectCard extends StatelessWidget {
     required this.object,
     required this.statusColor,
     required this.isAdmin,
+    required this.activeTasksCount,
+    required this.commentStats,
     required this.onTap,
     required this.onDelete,
   });
 
   @override
   Widget build(BuildContext context) {
-    final responsibleText = object.responsible.isEmpty
-        ? 'Ответственный: не указан'
-        : 'Ответственный: ${object.responsible}';
+    final responsibleText = object.responsible.trim().isEmpty
+        ? 'Створив: не вказано'
+        : 'Створив: ${object.responsible}';
 
-    final executorText = object.executorName.isEmpty
-        ? 'Исполнитель: не назначен'
-        : 'Исполнитель: ${object.executorName}';
+    final executorName = object.executorName.trim();
+    final hasExecutor = executorName.isNotEmpty;
 
     return InkWell(
       onTap: onTap,
@@ -517,7 +620,7 @@ class _ObjectCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(18),
                   ),
                   child: Icon(
-                    Icons.apartment_outlined,
+                    Icons.circle_outlined,
                     color: statusColor,
                     size: 28,
                   ),
@@ -552,7 +655,7 @@ class _ObjectCard extends StatelessWidget {
                       Icons.delete_outline,
                       color: Colors.redAccent,
                     ),
-                    tooltip: 'Удалить объект',
+                    tooltip: 'Видалити об’єкт',
                   ),
                 const Icon(Icons.chevron_right, color: Colors.black38),
               ],
@@ -563,8 +666,6 @@ class _ObjectCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _StatusBadge(text: object.status, color: statusColor),
-                const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -578,16 +679,18 @@ class _ObjectCard extends StatelessWidget {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        executorText,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: Colors.black54,
-                          fontWeight: FontWeight.w600,
+                      if (hasExecutor) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'Відповідальний: $executorName',
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Colors.black54,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ),
@@ -596,13 +699,31 @@ class _ObjectCard extends StatelessWidget {
 
             const SizedBox(height: 14),
 
-            Row(
+            Wrap(
+              spacing: 14,
+              runSpacing: 8,
               children: [
                 _MiniInfo(
                   icon: Icons.task_alt_outlined,
                   text: '${object.tasksCount} задач',
                 ),
-                const SizedBox(width: 16),
+                _MiniInfo(
+                  icon: Icons.work_outline,
+                  text: '$activeTasksCount в роботі',
+                  color: const Color(0xFF1F6FEB),
+                ),
+                _MiniInfo(
+                  icon: Icons.chat_bubble_outline_rounded,
+                  text: 'коментарі: всього ${commentStats.totalComments}',
+                  color: const Color(0xFF1F6FEB),
+                ),
+                _MiniInfo(
+                  icon: Icons.mark_chat_unread_outlined,
+                  text: 'нові ${commentStats.newComments}',
+                  color: commentStats.newComments > 0
+                      ? const Color(0xFFD93025)
+                      : Colors.black38,
+                ),
                 _MiniInfo(
                   icon: Icons.photo_camera_outlined,
                   text: '${object.photosCount} фото',
@@ -624,7 +745,7 @@ class _StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final safeText = text.isEmpty ? 'Без статуса' : text;
+    final safeText = text.isEmpty ? 'Без статусу' : text;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
@@ -647,20 +768,28 @@ class _StatusBadge extends StatelessWidget {
 class _MiniInfo extends StatelessWidget {
   final IconData icon;
   final String text;
+  final Color? color;
 
-  const _MiniInfo({required this.icon, required this.text});
+  const _MiniInfo({
+    required this.icon,
+    required this.text,
+    this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final effectiveColor = color ?? Colors.black38;
+
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, color: Colors.black38, size: 18),
+        Icon(icon, color: effectiveColor, size: 18),
         const SizedBox(width: 6),
         Text(
           text,
-          style: const TextStyle(
-            color: Colors.black54,
-            fontWeight: FontWeight.w600,
+          style: TextStyle(
+            color: color ?? Colors.black54,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ],
@@ -684,7 +813,7 @@ class _LoadingState extends StatelessWidget {
           CircularProgressIndicator(),
           SizedBox(height: 14),
           Text(
-            'Загружаем объекты...',
+            'Завантажуємо об’єкти...',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
           ),
         ],
@@ -712,7 +841,7 @@ class _ErrorState extends StatelessWidget {
           const Icon(Icons.error_outline, size: 44, color: Color(0xFFD93025)),
           const SizedBox(height: 12),
           const Text(
-            'Не удалось загрузить объекты',
+            'Не вдалося завантажити об’єкти',
             style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 6),
@@ -753,12 +882,12 @@ class _EmptyState extends StatelessWidget {
           Icon(Icons.search_off, size: 44, color: Colors.black38),
           SizedBox(height: 12),
           Text(
-            'Объекты не найдены',
+            'Об’єкти не найдены',
             style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
           ),
           SizedBox(height: 6),
           Text(
-            'Добавь новый объект или измени поиск',
+            'Додайте новий об’єкт або змініть пошук',
             style: TextStyle(color: Colors.black54),
           ),
         ],
@@ -766,3 +895,7 @@ class _EmptyState extends StatelessWidget {
     );
   }
 }
+
+
+
+

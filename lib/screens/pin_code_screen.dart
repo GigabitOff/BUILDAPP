@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
+import '../services/license_exception.dart';
 import 'home_screen.dart';
+import 'phone_login_screen.dart';
+import 'license_blocked_screen.dart';
 
 class PinCodeScreen extends StatefulWidget {
   final String phone;
@@ -21,11 +24,42 @@ class _PinCodeScreenState extends State<PinCodeScreen> {
   static const Color _blue = Color(0xFF1F6FEB);
   static const Color _bg = Color(0xFFF4F6FA);
 
+  @override
+  void initState() {
+    super.initState();
+    _requestPinOnOpen();
+  }
+
+  Future<void> _requestPinOnOpen() async {
+    try {
+      await _authService.startPhoneLogin(phone: widget.phone);
+
+      if (!mounted) return;
+    } on LicenseException catch (e) {
+      if (!mounted) return;
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => LicenseBlockedScreen(
+            message: e.message,
+            code: e.code,
+          ),
+        ),
+        (route) => false,
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      _showMessage(e.toString().replaceFirst('Exception: ', ''));
+    }
+  }
+
   Future<void> _verifyCode() async {
     final code = _codeController.text.trim();
 
     if (code.isEmpty) {
-      _showMessage('Введите PIN-код');
+      _showMessage('Введіть PIN-код');
       return;
     }
 
@@ -34,11 +68,52 @@ class _PinCodeScreenState extends State<PinCodeScreen> {
     try {
       await _authService.verifyPhoneCode(phone: widget.phone, code: code);
 
+      // После выдачи токена сразу проверяем /api/me.
+      // Если лицензия компании заблокирована/просрочена — показываем отдельный экран.
+      await _authService.me();
+
       if (!mounted) return;
 
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const HomeScreen()),
+        (route) => false,
+      );
+    } on LicenseException catch (e) {
+      if (!mounted) return;
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => LicenseBlockedScreen(
+            message: e.message,
+            code: e.code,
+          ),
+        ),
+        (route) => false,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      _showMessage(e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+
+  Future<void> _changePhone() async {
+    setState(() => _loading = true);
+
+    try {
+      await _authService.logout();
+
+      if (!mounted) return;
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const PhoneLoginScreen()),
         (route) => false,
       );
     } catch (e) {
@@ -95,7 +170,7 @@ class _PinCodeScreenState extends State<PinCodeScreen> {
                     ),
                     const SizedBox(height: 18),
                     const Text(
-                      'Введите PIN-код',
+                      'Введіть PIN-код',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w800,
@@ -103,7 +178,7 @@ class _PinCodeScreenState extends State<PinCodeScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Код отправлен на номер',
+                      'Код надіслано на номер',
                       style: TextStyle(
                         fontSize: 13,
                         color: Colors.grey.shade600,
@@ -165,20 +240,16 @@ class _PinCodeScreenState extends State<PinCodeScreen> {
                                 ),
                               )
                             : const Text(
-                                'Войти',
+                                'Увійти',
                                 style: TextStyle(fontWeight: FontWeight.w700),
                               ),
                       ),
                     ),
                     const SizedBox(height: 18),
                     TextButton.icon(
-                      onPressed: _loading
-                          ? null
-                          : () {
-                              Navigator.pop(context);
-                            },
+                      onPressed: _loading ? null : _changePhone,
                       icon: const Icon(Icons.arrow_back_rounded, size: 18),
-                      label: const Text('Изменить номер телефона'),
+                      label: const Text('Змінити номер телефону'),
                     ),
                     const SizedBox(height: 6),
                     Row(
@@ -191,7 +262,7 @@ class _PinCodeScreenState extends State<PinCodeScreen> {
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          'Вход через сервер BUILDAPP',
+                          'Вхід через сервер EVENTHESAPP',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey.shade500,
@@ -209,3 +280,9 @@ class _PinCodeScreenState extends State<PinCodeScreen> {
     );
   }
 }
+
+
+
+
+
+

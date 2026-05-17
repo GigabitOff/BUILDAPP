@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "250407449316",
+    "project_id": "eventhesapp",
+    "storage_bucket": "eventhesapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:250407449316:android:3aef4cb4965cbbf19832f1",
+        "android_client_info": {
+          "package_name": "com.example.build_tracker"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAqgzoRm4Vazq8NZjVZlTviCffUFHn1nuA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

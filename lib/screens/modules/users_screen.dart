@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -119,12 +119,12 @@ class _UsersScreenState extends State<UsersScreen> {
       builder: (_) => AlertDialog(
         title: const Text('Удалить пользователя?'),
         content: Text(
-          'Удалить "${user.name}"?\n\nЕго также отвяжет от объектов.',
+          'Удалить "${user.name}"?\n\nЕго также отвяжет от об’єктов.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Отмена'),
+            child: const Text('Скасувати'),
           ),
           ElevatedButton.icon(
             onPressed: () => Navigator.pop(context, true),
@@ -148,7 +148,7 @@ class _UsersScreenState extends State<UsersScreen> {
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Пользователь удалён')));
+      ).showSnackBar(const SnackBar(content: Text('Користувач удалён')));
 
       await loadUsers();
     } catch (e) {
@@ -329,7 +329,7 @@ class _UsersScreenState extends State<UsersScreen> {
               ),
               const SizedBox(height: 6),
               const Text(
-                'Создай первого исполнителя и потом привяжи его к объекту.',
+                'Создай первого исполнителя и потом привяжи его к об’єкту.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.black54),
               ),
@@ -345,7 +345,7 @@ class _UsersScreenState extends State<UsersScreen> {
         padding: const EdgeInsets.all(18),
         children: [
           Text(
-            'Всего пользователей: ${users.length}',
+            'Усього користувачів: ${users.length}',
             style: const TextStyle(
               color: Colors.black54,
               fontWeight: FontWeight.w700,
@@ -365,7 +365,7 @@ class _UsersScreenState extends State<UsersScreen> {
       backgroundColor: const Color(0xFFF4F6FA),
       appBar: AppBar(
         title: const Text(
-          'Пользователи',
+          'Користувачі',
           style: TextStyle(fontWeight: FontWeight.w800),
         ),
         backgroundColor: const Color(0xFFF4F6FA),
@@ -384,7 +384,7 @@ class _UsersScreenState extends State<UsersScreen> {
         foregroundColor: Colors.white,
         icon: const Icon(Icons.person_add_alt_1_outlined),
         label: const Text(
-          'Создать',
+          'Створити',
           style: TextStyle(fontWeight: FontWeight.w800),
         ),
       ),
@@ -392,3 +392,8 @@ class _UsersScreenState extends State<UsersScreen> {
     );
   }
 }
+
+
+
+
+

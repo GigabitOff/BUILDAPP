@@ -1,4 +1,4 @@
-class ObjectMaterial {
+﻿class ObjectMaterial {
   final int id;
   final int constructionObjectId;
   final String name;
@@ -38,3 +38,7 @@ class ObjectMaterial {
     );
   }
 }
+
+
+
+
